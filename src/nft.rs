@@ -1,5 +1,6 @@
 multiversx_sc::imports!();
 multiversx_sc::derive_imports!();
+//test
 
 
 
@@ -13,7 +14,7 @@ use crate::utils;
 #[multiversx_sc::module]
 pub trait NftModule: referral::ReferralModule + reward::RewardModule + storage::Storage + utils::Utils{
 
-//OWNER FUNCTIONS
+//OWNER FUNCTIONS 
    
     #[only_owner]
     #[endpoint(setGlobalProps)]
