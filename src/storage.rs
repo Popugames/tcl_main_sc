@@ -121,6 +121,19 @@ pub trait Storage {
     #[view(getRefinementTimestamp)] //the time when last refinement was added
     #[storage_mapper("refinement_timestamp")]
     fn refinement_timestamp(&self,collection_id: &TokenIdentifier, nonce: &u64) -> SingleValueMapper<u64>;
+
+    #[view(getSftPrice)]
+    #[storage_mapper("sft_price")]
+    fn sft_price(&self,collection_id: &TokenIdentifier, nonce: &u64) -> SingleValueMapper<BigUint>;
+
+    #[view(getSftSold)]
+    #[storage_mapper("sft_sold")]
+    fn sft_sold(&self,collection_id: &TokenIdentifier, nonce: &u64) -> SingleValueMapper<u32>;
+
+    #[view(getSftMax)]
+    #[storage_mapper("sft_max")]
+    fn sft_max(&self,collection_id: &TokenIdentifier, nonce: &u64) -> SingleValueMapper<u32>;
+
 //END
 
 //GLOBAL STORAGE

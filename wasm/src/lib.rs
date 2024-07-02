@@ -5,9 +5,9 @@
 ////////////////////////////////////////////////////
 
 // Init:                                 1
-// Endpoints:                           87
+// Endpoints:                           94
 // Async Callback (empty):               1
-// Total number of exported functions:  89
+// Total number of exported functions:  96
 
 #![no_std]
 #![allow(internal_features)]
@@ -31,10 +31,12 @@ multiversx_sc_wasm_adapter::endpoints! {
         addTcl => add_tcl
         setGlobalProps => set_global_props
         setCollection => set_collection
+        setSft => set_sft
         setNewPrice => set_new_price
         pauseMinting => pause_minting
         startMinting => start_minting
         getRoles => get_roles
+        buySft => buy_sft
         mintNft => mint_nft
         upgradeNft => upgrade_nft
         addBonus => add_bonus
@@ -69,6 +71,9 @@ multiversx_sc_wasm_adapter::endpoints! {
         getTclCount => tcl_count
         getTclMax => tcl_max
         getRefinementTimestamp => refinement_timestamp
+        getSftPrice => sft_price
+        getSftSold => sft_sold
+        getSftMax => sft_max
         getNftUpgradePrice => nft_upgrade_price
         getAddBonusPrice => add_bonus_price
         getChangeBonusPrice => change_bonus_price
@@ -107,6 +112,8 @@ multiversx_sc_wasm_adapter::endpoints! {
         isNftInCollection => is_collection_set
         getRandomNumber => get_random_number
         getNftsMinted => get_nfts_minted
+        getPrices => get_prices
+        getSftData => get_sft_data
     )
 }
 

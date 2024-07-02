@@ -1,5 +1,5 @@
-#USER_PEM="/home/elrond/SmartContracts/walletKey.pem"
-USER_PEM="/home/elrond/SmartContracts/walletShard2.pem"
+USER_PEM="/home/elrond/SmartContracts/walletKey.pem"
+#USER_PEM="/home/elrond/SmartContracts/walletShard2.pem"
 
 #PROXY="https://devnet-gateway.multiversx.com"
 PROXY="https://testnet-gateway.multiversx.com"
@@ -9,7 +9,7 @@ PROXY="https://testnet-gateway.multiversx.com"
 CHAIN_ID="T"
 #CHAIN_ID="1"
 
-#TOKEN_ID="BGG-0d3e01" #devnet
+#TOKEN_ID="XTCL-a8e1ec" #devnet
 TOKEN_ID="XTCL-467992" #testnet
 #TOKEN_ID="TCL-fe459d" #mainnet
 
@@ -17,8 +17,8 @@ TOKEN_ID="XTCL-467992" #testnet
 SC_ADDRESS=erd1qqqqqqqqqqqqqpgqsk0tqdpd4mx728k0uece45pahh4u0p03r8qszmfadm
 #SC_ADDRESS=erd1qqqqqqqqqqqqqpgq4cr05ac4zzrxu7f5vx83ktg5czyc9wp2ln5sl2w0r0 #devnet
 
-#USER_ADDRESS="erd1tpayjteeg67rq7me94k36705dh2c077xjsmhzdmkkwjeg0w00ufsmmltyc"
-USER_ADDRESS="erd1ajdkdj0lj4t29747uhv6mzfr7y3wdf7sk8hxea6g257cvs7vcj9qhpnefd"
+USER_ADDRESS="erd18lsmq9rldm52syrgqzpwrjrvqlsxprgvp9v6ne5qtjymqgzgr8qs9ngtcl"
+#USER_ADDRESS="erd1ajdkdj0lj4t29747uhv6mzfr7y3wdf7sk8hxea6g257cvs7vcj9qhpnefd"
 
 TEAM_WALLET="erd18lsmq9rldm52syrgqzpwrjrvqlsxprgvp9v6ne5qtjymqgzgr8qs9ngtcl"
 #NEW_USER_ADDRESS="erd1tpayjteeg67rq7me94k36705dh2c077xjsmhzdmkkwjeg0w00ufsmmltyc"
@@ -69,8 +69,7 @@ for DYNAMIC_VALUE in "${DYNAMIC_VALUES[@]}"; do
     fi
 done
 
-NFT_NONCE=21
-
+NFT_NONCE=1
 
 deploy() {
     mxpy --verbose contract deploy\
@@ -93,9 +92,9 @@ upgrade() {
     --arguments ${TOKEN_ID_HEX} || return
 }
 
-COLLECTION_ID="TCLARMOUR-7d143c" #------------------------------------------------------------------------------------1
+COLLECTION_ID="TCLMOUNT-3e5536" #------------------------------------------------------------------------------------1
 COLLECTION_ID_HEX="0x$(echo -n ${COLLECTION_ID} | xxd -p -u | tr -d '\n')"
-NFT_NAME="Bracelet" #----000000000000000--------------------------------------------------------------------------------2
+NFT_NAME="Necklace" #----000000000000000--------------------------------------------------------------------------------2
 NFT_NAME_HEX="0x$(echo -n ${NFT_NAME} | xxd -p -u | tr -d '\n')"
 NFT_PRICE=1000000000000000000000 #1000000000000000000000 = 1000
 NFT_MAX=300 #---------------------------------------------------------------------------------------------------------3
@@ -104,16 +103,16 @@ MINT_TOKEN_ID=${TOKEN_ID_HEX}
 NEED_SOCKET=true #---------------------------------------------------------------------------------------------------4
 
 #---------------------------------------------------------------------------------------------------------------------5
-IMAGE_CID=("QmYwxLMprE1wMr5efvB5wFvECB4nZZ1AtSF3XcwzS6xRu6" "QmYwxLMprE1wMr5efvB5wFvECB4nZZ1AtSF3XcwzS6xRu6")
+IMAGE_CID=("QmQ1TLhzL9iPPGuhcHwhJBfJ2wpv1uiA8SYoMLVa5Rc1YA" "QmQ1TLhzL9iPPGuhcHwhJBfJ2wpv1uiA8SYoMLVa5Rc1YA")
 
 #---------------------------------------------------------------------------------------------------------------------6
-METADATA_CID=("QmaXnYMH5xHS7DNsfGbR5viDuDAS9c3QBb28aSmvGv8TGe" "QmaXnYMH5xHS7DNsfGbR5viDuDAS9c3QBb28aSmvGv8TGe")
+METADATA_CID=("QmQ2YqsNeURj4MQAw41nhCN4J3xm3eRrMRvvEL8i9SwN7a" "QmQ2YqsNeURj4MQAw41nhCN4J3xm3eRrMRvvEL8i9SwN7a")
 
-NFT_COUNT=(300 200) #limited by NFT_MAX 
+NFT_COUNT=(300 200) #limited by NFT_MAX
 MAX_SOCKET=(3 3) #----------------------------------------------------------------------------------------------------7
 MAX_CRYSTAL_VARIANTS=(1 1) # index 0 based (last folder index+1) #----------------------------------------------------8
 MAX_BONUS_VARIANTS=(1000 1000)  # index 0 based (last json index+1)#--------------------------------------------------9
-EQUIP_SLOT=5 # Armor=0, Weapon=1, Shield=2, Helmet=3, Necklace=4, Bracelet=5, Shoes=6, Earrings=7 --------------------10
+EQUIP_SLOT=4 # Armor=0, Weapon=1, Shield=2, Helmet=3, Necklace=4, Bracelet=5, Shoes=6, Earrings=7 --------------------10
 
 COLLECTION_DATA=""
 for ((i = 0; i < ${#METADATA_CID[@]}; i++))
@@ -151,6 +150,20 @@ SET_Collection() {
     --arguments ${COLLECTION_ID_HEX} $NFT_NAME_HEX ${NFT_PRICE} ${NFT_MAX} ${ROYALTIES} $NEED_SOCKET ${EQUIP_SLOT} ${COLLECTION_DATA}
 }
 
+SET_SFT() {
+    collection_id=str:TCLMOUNT-3e5536
+    sft_nonce=4
+    sft_price=2500000000000000000000
+    sft_sold=400
+    sft_max=400
+    mxpy --verbose contract call ${SC_ADDRESS} \
+    --send --proxy=${PROXY} --chain=${CHAIN_ID} \
+    --recall-nonce --pem=${USER_PEM} \
+    --gas-limit=60000000 \
+    --function="setSft" \
+    --arguments $collection_id $sft_nonce $sft_price $sft_sold $sft_max
+}
+
 CLAIM_REWARDS() {
     mxpy --verbose contract call ${SC_ADDRESS} \
     --send --proxy=${PROXY} --chain=${CHAIN_ID} \
@@ -178,6 +191,20 @@ SET_global_props() {
     --gas-limit=60000000 \
     --function="setGlobalProps" \
     --arguments ${TOKEN_ID_HEX} ${NFT_UPGRADE_PRICE} ${ADD_BONUS_PRICE} ${CHANGE_BONUS_PRICE} ${ADD_SOCKET_PRICE} ${ADD_CRYSTAL_PRICE} $CHANGE_CRYSTAL_PRICE ${NFT_UPGRADE_CHANCE} ${ADD_REFINEMENT_PRICE} $TCL_PRICE $TEAM_WALLET $SERVER_WALLET $APR_MAX
+}
+
+getSftSold() {
+    mxpy --verbose contract query ${SC_ADDRESS} \
+    --proxy=${PROXY} \
+    --function="getSftSold" \
+     --arguments $COLLECTION_ID_HEX $NFT_NONCE
+}
+
+getSftMax() {
+    mxpy --verbose contract query ${SC_ADDRESS} \
+    --proxy=${PROXY} \
+    --function="getSftMax" \
+     --arguments $COLLECTION_ID_HEX $NFT_NONCE
 }
 
 getNftQuality() {
@@ -548,7 +575,7 @@ EQUIP_NFT_TCL() {
 }
 
 UNEQUIP_NFT() {
-    nft_slot=0
+    nft_slot=5
     mxpy --verbose contract call ${SC_ADDRESS} \
     --send --proxy=${PROXY} --chain=${CHAIN_ID} \
     --recall-nonce --pem=${USER_PEM} \
@@ -927,7 +954,7 @@ SET_SPECIAL_ROLE() {
 }
 
 BURN_NFT() {
-    nonce=25
+    nonce=17
     quantity=1
     mxpy --verbose contract call $USER_ADDRESS --recall-nonce \
         --pem=${USER_PEM} \

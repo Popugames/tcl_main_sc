@@ -368,5 +368,53 @@ pub trait Utils: storage::Storage {
         nfts_minted_str
     }
 
+    #[endpoint(getPrices)]
+    fn get_prices(&self, collection_id: &TokenIdentifier) -> ManagedBuffer {
+        let mut prices_str = ManagedBuffer::new_from_bytes(b"");
+    
+        let mint_price = self.nft_price(&collection_id).get();
+        let nft_upgrade_price = self.nft_upgrade_price().get();
+        let add_bonus_price = self.add_bonus_price().get();
+        let add_socket_price = self.add_socket_price().get();
+        let add_crystal_price = self.add_crystal_price().get();
+        let change_crystal_price = self.change_crystal_price().get();
+        let add_refinement_price = self.add_refinement_price().get();
+
+        prices_str.append(&self.biguint_to_ascii(&mint_price));
+        prices_str.append(&ManagedBuffer::new_from_bytes(b","));
+        prices_str.append(&self.biguint_to_ascii(&nft_upgrade_price));
+        prices_str.append(&ManagedBuffer::new_from_bytes(b","));
+        prices_str.append(&self.biguint_to_ascii(&add_bonus_price));
+        prices_str.append(&ManagedBuffer::new_from_bytes(b","));
+        prices_str.append(&self.biguint_to_ascii(&add_socket_price));
+        prices_str.append(&ManagedBuffer::new_from_bytes(b","));
+        prices_str.append(&self.biguint_to_ascii(&add_crystal_price));
+        prices_str.append(&ManagedBuffer::new_from_bytes(b","));
+        prices_str.append(&self.biguint_to_ascii(&change_crystal_price));
+        prices_str.append(&ManagedBuffer::new_from_bytes(b","));
+        prices_str.append(&self.biguint_to_ascii(&add_refinement_price));
+    
+        prices_str
+    }
+
+    #[endpoint(getSftData)]
+    fn get_sft_data(&self, identifiers: MultiValueEncoded<MultiValue2<TokenIdentifier, u64>>) -> ManagedBuffer {
+        let mut sfts_data_str = ManagedBuffer::new_from_bytes(b"");
+    
+        for identifier in identifiers.into_iter() {
+            let (collection_id, nonce) = identifier.into_tuple();
+
+            let sft_sold = self.sft_sold(&collection_id, &nonce).get();
+            let sft_max = self.sft_max(&collection_id, &nonce).get();
+
+            sfts_data_str.append(&self.decimal_to_ascii((sft_sold).try_into().unwrap()));
+            sfts_data_str.append(&ManagedBuffer::new_from_bytes(b" "));
+            sfts_data_str.append(&self.decimal_to_ascii((sft_max).try_into().unwrap()));
+            //----------------------------------------------------------------------end
+            sfts_data_str.append(&ManagedBuffer::new_from_bytes(b","));
+        }
+    
+        sfts_data_str
+    }
 
 }

@@ -1,6 +1,5 @@
 multiversx_sc::imports!();
 multiversx_sc::derive_imports!();
-//test
 
 
 
@@ -80,6 +79,22 @@ pub trait NftModule: referral::ReferralModule + reward::RewardModule + storage::
     }
 
     #[only_owner]
+    #[endpoint(setSft)]
+    fn set_sft(
+        &self,
+        collection_id: TokenIdentifier,
+        nonce: u64,
+        sft_price: BigUint,
+        sft_sold: u32,
+        sft_max: u32
+    )
+    {
+        self.sft_price(&collection_id, &nonce).set(sft_price);
+        self.sft_sold(&collection_id, &nonce).set(sft_sold);
+        self.sft_max(&collection_id, &nonce).set(sft_max);
+    }
+
+    #[only_owner]
     #[endpoint(setNewPrice)]
     fn set_new_price(&self,collection_id:TokenIdentifier,nft_price:BigUint)
     {
@@ -121,6 +136,40 @@ pub trait NftModule: referral::ReferralModule + reward::RewardModule + storage::
     }
 
 
+    #[payable("*")]
+    #[endpoint(buySft)]
+    fn buy_sft(&self, collection_id: TokenIdentifier, nonce: u64) {
+
+        let caller = self.blockchain().get_caller();
+        let sft_price = self.sft_price(&collection_id, &nonce).get();
+        let sft_sold = self.sft_sold(&collection_id, &nonce).get();
+        let sft_max = self.sft_max(&collection_id, &nonce).get();
+        let payment_token_id = self.payment_token_id().get();
+        let (payment_token, payment_amount) = self.call_value().egld_or_single_fungible_esdt();
+
+        require!(!self.payment_token_id().is_empty(), "Payment token ID not set");
+        require!(!self.sft_price(&collection_id, &nonce).is_empty(), "sft not set");
+        require!(&sft_sold < &sft_max, "sold out");
+        require!(payment_token == payment_token_id,"invalid token paid");
+        require!(
+            &payment_amount == &sft_price,
+            "invalid amount"
+        );
+
+        //UPDATE SFTs SOLD
+        self.sft_sold(&collection_id, &nonce).update(|v| *v += 1);
+
+        //SEND NFT TO CALLER
+        self.send().direct_esdt(
+            &caller,
+            &collection_id,
+            nonce,
+            &BigUint::from(1u32),
+        );
+
+        //DISTRIBUTE TOKENS
+        self.distribute_tokens(&caller,payment_amount);
+    }
 
 
     #[payable("*")]
