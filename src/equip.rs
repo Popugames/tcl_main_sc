@@ -103,7 +103,7 @@ pub trait EquipModule: nft::NftModule + referral::ReferralModule + reward::Rewar
                 // Obținem suma TCL asociată NFT-ului
                 let tcl_count = self.tcl_count(&collection_id, &nonce).get();
                 
-                // Dacă suma TCL este mai mare decât zero, de-stake suma
+                // Dacă suma TCL este mai mare decât zero, unstake suma
                 if &tcl_count > &BigUint::zero() {
                     self.tcl_count(&collection_id, &nonce).set(BigUint::zero());
                     self.unstake(&caller, &tcl_count);
@@ -182,6 +182,11 @@ pub trait EquipModule: nft::NftModule + referral::ReferralModule + reward::Rewar
 
             let refinement_timestamp = self.refinement_timestamp(&collection_id, &nonce).get();
             nfts_data_str.append(&self.biguint_to_ascii(&BigUint::from(refinement_timestamp)));
+            nfts_data_str.append(&ManagedBuffer::new_from_bytes(b" ")); 
+
+            let nft_wave = self.nft_wave(&collection_id, &nonce).get();
+            let max_socket = self.max_socket(&collection_id).get(nft_wave as usize);
+            nfts_data_str.append(&self.decimal_to_ascii((max_socket as u32).try_into().unwrap())); // max_socket
             //nfts_data_str.append(&ManagedBuffer::new_from_bytes(b" ")); 
 
             //----------------------------------------------------------------------end
@@ -217,15 +222,24 @@ pub trait EquipModule: nft::NftModule + referral::ReferralModule + reward::Rewar
         );
 
         require!(
-            self.is_equipped(&wallet_address, &collection_id, &nonce), 
-            "nft not equipped"
+            self.is_equipped(&wallet_address, &collection_id, &nonce) ||
+            self.loaned_nfts(&wallet_address).contains(&(collection_id.clone(), nonce.clone())), 
+            "nft not equipped or loaned"
         );
 
         //UPDATE NFT
         self.tcl_count(&collection_id, &nonce).update(|v| *v += &payment_amount);
 
-        //STAKE TCL
-        self.stake(&wallet_address, &payment_amount);
+        if self.is_equipped(&wallet_address, &collection_id, &nonce){
+            //STAKE EQUIPPED
+            self.stake(&wallet_address, &payment_amount);
+        }
+        else{
+            //STAKE LOANED
+            self.stake_loaned(&wallet_address, &payment_amount);
+        }
+        
+        
         
     }
     

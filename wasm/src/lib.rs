@@ -5,9 +5,9 @@
 ////////////////////////////////////////////////////
 
 // Init:                                 1
-// Endpoints:                           94
+// Endpoints:                          102
 // Async Callback (empty):               1
-// Total number of exported functions:  96
+// Total number of exported functions: 104
 
 #![no_std]
 #![allow(internal_features)]
@@ -23,7 +23,7 @@ multiversx_sc_wasm_adapter::endpoints! {
         upgrade => upgrade
         addReserve => add_reserve
         claimRewards => claim_rewards
-        calculateReward => calculate_reward
+        claimLendingRewards => claim_lending_rewards
         equipNft => equip_nft
         unequipNft => unequip_nft
         getEquippedNfts => get_equipped_nfts
@@ -102,8 +102,11 @@ multiversx_sc_wasm_adapter::endpoints! {
         getTotalStakedAmount => total_staked_amount
         getServerWallet => server_wallet
         getUserStakedAmount => user_staked_amount
-        getLastClaimedEpoch => last_claimed_epoch
+        getUserLoanedAmount => user_loaned_amount
+        getLastClaimedLendingEpoch => last_claimed_lending_epoch
         calculateStorage => calculate_storage
+        calculateAdditionalStorage => calculate_additional_storage
+        calculateReward => calculate_reward
         buildUrisVec => build_uris_vec
         getAttributesBuffer => build_attributes_buffer
         getCurrentWave => get_current_wave
@@ -114,6 +117,11 @@ multiversx_sc_wasm_adapter::endpoints! {
         getNftsMinted => get_nfts_minted
         getPrices => get_prices
         getSftData => get_sft_data
+        getLendingData => get_lending_data
+        getLastClaimedEpoch => get_last_claimed_epoch
+        getRewardsData => rewards_data
+        loanNft => loan_nft
+        unloanNft => unloan_nft
     )
 }
 

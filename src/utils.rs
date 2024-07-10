@@ -8,7 +8,7 @@ const IMAGE_FILE: &[u8] = "0.jpg".as_bytes();
 const ATTR_SEPARATOR: &[u8] = ";".as_bytes();
 const URI_SLASH: &[u8] = "/".as_bytes();
 const TAGS_KEY_NAME: &[u8] = "tags:tcl,mmorpg,thecursedland,game,play&earn".as_bytes();
-const NORMALIZATION_COEFFICIENT: u8 = 166; //această valoare este un coeficient de normalizare pentru tcl_storage.
+const NORMALIZATION_COEFFICIENT: u8 = 200; //această valoare este un coeficient de normalizare pentru tcl_storage.
 const DEFAULT_REFERRAL: &[u8] = "LANDER23".as_bytes();
 
 use crate::storage;
@@ -32,6 +32,47 @@ pub trait Utils: storage::Storage {
         let tcl_storage = (amount * factor) / (tcl_usd_price * normalization_coefficient);
 
         tcl_storage
+    }
+
+    #[view(calculateAdditionalStorage)]
+    fn calculate_additional_storage(&self, amount: BigUint) -> BigUint {
+
+        let tcl_usd_price = self.tcl_usd_price().get();
+
+        // Verifică dacă oricare dintre valori este zero
+        if &amount == &BigUint::zero() || &tcl_usd_price == &BigUint::zero() {
+            return BigUint::zero();
+        }
+
+        let additional_storage = amount * BigUint::from(2u8) * tcl_usd_price / BigUint::from(5000000000000000u64);
+
+        additional_storage
+    }
+
+    #[endpoint(calculateReward)]
+    fn calculate_reward(&self, user_staked_amount: BigUint) -> BigUint {
+
+        let total_reserve = self.total_reserve_amount().get();
+        let total_staked_amount = self.total_staked_amount().get();
+        let apr_max = self.apr_max().get();
+
+        if &user_staked_amount == &BigUint::zero()
+        {
+            return BigUint::zero();
+        }
+
+        let global_daily_reward = (total_reserve/BigUint::from(100u64))/BigUint::from(30u64); 
+        let user_reward =  (global_daily_reward*(&user_staked_amount *10000000000u64/ total_staked_amount))/10000000000u64;
+        let max_reward = (user_staked_amount * BigUint::from(apr_max)/BigUint::from(100u64))/BigUint::from(365u64);
+
+        if user_reward>max_reward
+        {
+            return max_reward;
+        }
+        else
+        {
+            return user_reward;
+        }
     }
 
     #[view(buildUrisVec)]
@@ -176,6 +217,19 @@ pub trait Utils: storage::Storage {
             nonce,
             &new_attributes
         );
+    }
+
+    fn is_available(&self,wallet_address: &ManagedAddress, collection_id: &TokenIdentifier, nonce: &u64) -> bool{
+
+        let current_epoch = self.blockchain().get_block_epoch();
+        let is_available_borrowing = self.available_borrow_nfts(&current_epoch).contains(&(collection_id.clone(), nonce.clone()));
+        let claimed_this_epoch = &self.last_nft_claimed_epoch(&collection_id, &nonce).get() == &current_epoch;
+
+        if is_available_borrowing || !claimed_this_epoch{
+            return true;
+        }
+
+        return false;
     }
 
     #[view(getCurrentWave)]
@@ -375,6 +429,7 @@ pub trait Utils: storage::Storage {
         let mint_price = self.nft_price(&collection_id).get();
         let nft_upgrade_price = self.nft_upgrade_price().get();
         let add_bonus_price = self.add_bonus_price().get();
+        let change_bonus_price = self.change_bonus_price().get();
         let add_socket_price = self.add_socket_price().get();
         let add_crystal_price = self.add_crystal_price().get();
         let change_crystal_price = self.change_crystal_price().get();
@@ -385,6 +440,8 @@ pub trait Utils: storage::Storage {
         prices_str.append(&self.biguint_to_ascii(&nft_upgrade_price));
         prices_str.append(&ManagedBuffer::new_from_bytes(b","));
         prices_str.append(&self.biguint_to_ascii(&add_bonus_price));
+        prices_str.append(&ManagedBuffer::new_from_bytes(b","));
+        prices_str.append(&self.biguint_to_ascii(&change_bonus_price));
         prices_str.append(&ManagedBuffer::new_from_bytes(b","));
         prices_str.append(&self.biguint_to_ascii(&add_socket_price));
         prices_str.append(&ManagedBuffer::new_from_bytes(b","));
@@ -415,6 +472,97 @@ pub trait Utils: storage::Storage {
         }
     
         sfts_data_str
+    }
+
+    #[endpoint(getLendingData)]
+    fn get_lending_data(&self, wallet_address: ManagedAddress) -> ManagedBuffer {
+        let mut lending_data_str = ManagedBuffer::new_from_bytes(b"");
+
+        let current_epoch = self.blockchain().get_block_epoch();
+        let available_borrow_nfts =  self.available_borrow_nfts(&current_epoch).len();
+    
+        //NFT AVAILABLE 
+        lending_data_str.append(&self.decimal_to_ascii((available_borrow_nfts as u32).try_into().unwrap()));
+        lending_data_str.append(&ManagedBuffer::new_from_bytes(b","));
+
+        //LONED NFTs
+        if self.loaned_nfts(&wallet_address).len() > 0
+        {
+            for (collection_id, nonce) in self.loaned_nfts(&wallet_address).iter() {
+                let tcl_count = self.tcl_count(&collection_id, &nonce).get();
+
+                lending_data_str.append(&collection_id.into_managed_buffer());
+                lending_data_str.append(&ManagedBuffer::new_from_bytes(b" "));
+                lending_data_str.append(&self.decimal_to_ascii((nonce as u32).try_into().unwrap()));
+                lending_data_str.append(&ManagedBuffer::new_from_bytes(b" "));
+                lending_data_str.append(&self.biguint_to_ascii(&tcl_count));
+                lending_data_str.append(&ManagedBuffer::new_from_bytes(b","));
+            }
+        }
+       
+        lending_data_str
+    }
+
+    //TODO Sterge dupa ce implementeaza Yuris getRewardsData in loc de getLastClaimedEpoch
+    #[endpoint(getLastClaimedEpoch)]
+    fn get_last_claimed_epoch(&self, wallet_address: ManagedAddress) -> ManagedBuffer {
+        let mut return_buffer = ManagedBuffer::new_from_bytes(b"");
+    
+        let current_epoch = self.blockchain().get_block_epoch();
+        let last_claimed_epoch = self.last_claimed_epoch(&wallet_address).get();
+        let last_claimed_lending_epoch = self.last_claimed_lending_epoch(&wallet_address).get();
+
+        return_buffer.append(&self.decimal_to_ascii((current_epoch as u32).try_into().unwrap())); //Current Epoch
+        return_buffer.append(&ManagedBuffer::new_from_bytes(b" "));
+        return_buffer.append(&self.decimal_to_ascii((last_claimed_epoch as u32).try_into().unwrap())); //Last Claimed Epoch
+        return_buffer.append(&ManagedBuffer::new_from_bytes(b" "));
+        return_buffer.append(&self.decimal_to_ascii((last_claimed_lending_epoch as u32).try_into().unwrap())); //Last Claimed Lending Epoch
+    
+        return_buffer
+    }
+
+    #[endpoint(getRewardsData)]
+    fn rewards_data(&self, wallet_address: ManagedAddress) -> ManagedBuffer {
+        let mut return_buffer = ManagedBuffer::new_from_bytes(b"");
+    
+        let total_reserve_amount = self.total_reserve_amount().get();
+        let total_rewards_released = self.total_rewards_released().get();
+        let apr_max = self.apr_max().get();
+        let total_staked_amount = self.total_staked_amount().get();
+        let user_staked_amount = self.user_staked_amount(&wallet_address).get();
+        let user_loaned_amount = self.user_loaned_amount(&wallet_address).get();
+        let current_epoch = self.blockchain().get_block_epoch();
+        let last_claimed_epoch = self.last_claimed_epoch(&wallet_address).get();
+        let last_claimed_lending_epoch = self.last_claimed_lending_epoch(&wallet_address).get();
+        let daily_rewads = self.calculate_reward(user_staked_amount.clone());
+        let daily_loaned_rewads = self.calculate_reward(user_loaned_amount.clone());
+        let block_round = self.blockchain().get_block_round();
+
+        return_buffer.append(&self.biguint_to_ascii(&total_reserve_amount)); //Total Reserve Amount
+        return_buffer.append(&ManagedBuffer::new_from_bytes(b" "));
+        return_buffer.append(&self.biguint_to_ascii(&total_rewards_released)); //Total Rewards Released
+        return_buffer.append(&ManagedBuffer::new_from_bytes(b" "));
+        return_buffer.append(&self.decimal_to_ascii((apr_max as u32).try_into().unwrap())); //APR Max
+        return_buffer.append(&ManagedBuffer::new_from_bytes(b" "));
+        return_buffer.append(&self.biguint_to_ascii(&total_staked_amount)); //Total Staked Amount
+        return_buffer.append(&ManagedBuffer::new_from_bytes(b" "));
+        return_buffer.append(&self.biguint_to_ascii(&user_staked_amount)); //Used Staked Amount
+        return_buffer.append(&ManagedBuffer::new_from_bytes(b" "));
+        return_buffer.append(&self.biguint_to_ascii(&user_loaned_amount)); //Used Loaned Amount
+        return_buffer.append(&ManagedBuffer::new_from_bytes(b" "));
+        return_buffer.append(&self.decimal_to_ascii((current_epoch as u32).try_into().unwrap())); //Current Epoch
+        return_buffer.append(&ManagedBuffer::new_from_bytes(b" "));
+        return_buffer.append(&self.decimal_to_ascii((last_claimed_epoch as u32).try_into().unwrap())); //Last Claimed Epoch
+        return_buffer.append(&ManagedBuffer::new_from_bytes(b" "));
+        return_buffer.append(&self.decimal_to_ascii((last_claimed_lending_epoch as u32).try_into().unwrap())); //Last Claimed Lending Epoch
+        return_buffer.append(&ManagedBuffer::new_from_bytes(b" "));
+        return_buffer.append(&self.biguint_to_ascii(&daily_rewads)); //Daily Rewards
+        return_buffer.append(&ManagedBuffer::new_from_bytes(b" "));
+        return_buffer.append(&self.biguint_to_ascii(&daily_loaned_rewads)); //Daily Rewards
+        return_buffer.append(&ManagedBuffer::new_from_bytes(b" "));
+        return_buffer.append(&self.decimal_to_ascii((block_round as u32).try_into().unwrap())); //Round
+    
+        return_buffer
     }
 
 }

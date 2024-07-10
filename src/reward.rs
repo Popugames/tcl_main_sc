@@ -2,10 +2,11 @@ multiversx_sc::imports!();
 multiversx_sc::derive_imports!();
 
 use crate::storage;
+use crate::utils;
 
 #[multiversx_sc::module]
 
-pub trait RewardModule: storage::Storage{
+pub trait RewardModule: storage::Storage + utils::Utils{
 
     #[payable("*")]
     #[endpoint(addReserve)]
@@ -34,11 +35,34 @@ pub trait RewardModule: storage::Storage{
         self.user_staked_amount(wallet_address).update(|v| *v -= amount.clone());
     }
 
+    fn stake_loaned(&self,wallet_address: &ManagedAddress, amount: &BigUint) {
+
+        let penalised_amount = amount.clone() * BigUint::from(80u64) / BigUint::from(100u64);
+
+        //GLOBAL
+        self.total_staked_amount().update(|v| *v += amount.clone());
+
+        //LOCAL
+        self.user_loaned_amount(wallet_address).update(|v| *v += penalised_amount);
+    }
+
+    fn unstake_loaned(&self,wallet_address: &ManagedAddress, amount: &BigUint) {
+
+        let penalised_amount = amount.clone() * BigUint::from(80u64) / BigUint::from(100u64);
+
+        //GLOBAL
+        self.total_staked_amount().update(|v| *v -= amount.clone());
+
+        //LOCAL
+        self.user_loaned_amount(wallet_address).update(|v| *v -= penalised_amount.clone());
+    }
+
     #[endpoint(claimRewards)]
-    fn claim_rewards(&self,wallet_address: &ManagedAddress) {
+    fn claim_rewards(&self,wallet_address: ManagedAddress) {
         let server_wallet = self.blockchain().get_caller();
         let current_epoch = self.blockchain().get_block_epoch();
         let last_claimed_epoch = self.last_claimed_epoch(&wallet_address).get();
+        let user_staked_amount = self.user_staked_amount(&wallet_address).get();
 
         require!(
             server_wallet == self.server_wallet().get(),
@@ -49,7 +73,7 @@ pub trait RewardModule: storage::Storage{
             "rewards already claimed in this epoch"
         );
         require!(
-            self.user_staked_amount(&wallet_address).get()>0,
+            &user_staked_amount > &0,
             "no token staked"
         );
         require!(
@@ -57,13 +81,13 @@ pub trait RewardModule: storage::Storage{
             "apr_max not set"
         );
 
-        let user_reward = self.calculate_reward(&wallet_address);
+        let user_reward = self.calculate_reward(user_staked_amount);
 
         //GLOBAL
         self.total_rewards_released().update(|v| *v += &user_reward);
 
         //LOCAL
-        self.last_claimed_epoch(wallet_address).set(current_epoch);
+        self.last_claimed_epoch(&wallet_address).set(current_epoch);
 
         //SEND TOKENS
         self.send().direct(
@@ -75,31 +99,57 @@ pub trait RewardModule: storage::Storage{
 
     }
 
-    #[endpoint(calculateReward)]
-    fn calculate_reward(&self,wallet_address: &ManagedAddress) -> BigUint {
+    #[endpoint(claimLendingRewards)]
+    fn claim_lending_rewards(&self, wallet_address: ManagedAddress) {
+        // Obține informații despre apelant și starea curentă
+        let caller = self.blockchain().get_caller();
+        let current_epoch = self.blockchain().get_block_epoch();
+        let last_claimed_lending_epoch = self.last_claimed_lending_epoch(&caller).get();
+        let user_loaned_amount = self.user_loaned_amount(&caller).get();
+        let server_wallet = self.blockchain().get_caller();
 
-        let total_reserve = self.total_reserve_amount().get();
-        let user_staked_amount = self.user_staked_amount(wallet_address).get();
-        let total_staked_amount = self.total_staked_amount().get();
-        let apr_max = self.apr_max().get();
-
-        if &user_staked_amount == &BigUint::zero()
-        {
-            return BigUint::zero();
+        require!(
+            server_wallet == self.server_wallet().get() || &caller == &wallet_address,
+            "invalid caller"
+        );
+        // Verifică condițiile pentru revendicare
+        require!(
+            &current_epoch > &last_claimed_lending_epoch,
+            "rewards already claimed in this epoch"
+        );
+        require!(
+            &user_loaned_amount > &0,
+            "no token staked"
+        );
+        require!(
+            self.apr_max().get()>0,
+            "apr_max not set"
+        );
+    
+        // Calculează recompensa utilizatorului
+        let user_reward = self.calculate_reward(user_loaned_amount);
+    
+        // Actualizează recompensele totale eliberate
+        self.total_rewards_released().update(|v| *v += &user_reward);
+    
+        // Actualizează ultima epocă de revendicare pentru utilizator
+        self.last_claimed_lending_epoch(&caller).set(&current_epoch);
+    
+        //Setam epoca curenta pentru fiecare NFT dat imprumut
+        for (collection_id, nonce) in self.loaned_nfts(&caller).iter() {
+            self.last_nft_claimed_epoch(&collection_id, &nonce).set(&current_epoch);
         }
-
-        let global_daily_reward = (total_reserve/BigUint::from(100u64))/BigUint::from(30u64); 
-        let user_reward =  (global_daily_reward*(&user_staked_amount *10000000000u64/ total_staked_amount))/10000000000u64;
-        let max_reward = (user_staked_amount * BigUint::from(apr_max)/BigUint::from(100u64))/BigUint::from(365u64);
-
-        if user_reward>max_reward
-        {
-            return max_reward;
-        }
-        else
-        {
-            return user_reward;
-        }
+    
+        // Trimite recompensa către portofelul utilizatorului
+        self.send().direct(
+            &caller,
+            &self.reward_token_id().get(),
+            0u64,
+            &user_reward
+        );
     }
+    
+
+    
 
 }

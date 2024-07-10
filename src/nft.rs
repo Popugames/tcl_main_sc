@@ -237,7 +237,7 @@ pub trait NftModule: referral::ReferralModule + reward::RewardModule + storage::
         self.tcl_count(&collection_id, &nonce).set(BigUint::zero());
 
         //UPDATE TCL MAX
-        let additional_storage = self.calculate_storage(payment_amount.clone() * BigUint::from(2u8));
+        let additional_storage = self.calculate_additional_storage(payment_amount.clone());
         self.tcl_max(&collection_id, &nonce).update(|v| *v += additional_storage);
 
         //CREATE NFT
@@ -268,6 +268,11 @@ pub trait NftModule: referral::ReferralModule + reward::RewardModule + storage::
     fn upgrade_nft(&self, collection_id: TokenIdentifier, nonce: u64) {
         let caller = self.blockchain().get_caller();
         let is_equipped = self.is_equipped(&caller, &collection_id, &nonce);
+        let is_loaned = self.loaned_nfts(&caller).contains(&(collection_id.clone(), nonce.clone()));
+        let is_available = self.is_available(&caller, &collection_id, &nonce);
+
+        //is_equipped requirement trebuie eliminat dupa ce se rezolva problema cu metadata inter-shard(API)
+        require!(is_equipped || is_available, "nft must be equipped or not borrowed");
     
         // Verificări inițiale pentru a asigura că ID-ul tokenului de plată și prețul de upgrade sunt setate
         require!(!self.payment_token_id().is_empty(), "Payment token ID not set");
@@ -292,9 +297,10 @@ pub trait NftModule: referral::ReferralModule + reward::RewardModule + storage::
         // Verificăm dacă am primit suma corectă de plată
         let expected_amount = self.nft_upgrade_price().get();
         require!(payment_amount == expected_amount, "Incorrect payment amount");
-    
+
+        
         // Dacă NFT-ul nu este echipat, verificăm și extragem detaliile transferului NFT
-        if !is_equipped {
+        if !is_equipped && !is_loaned {
             // Verificăm dacă NFT-ul a fost furnizat
             require!(nft_transfer.is_some(), "NFT not provided");
     
@@ -325,14 +331,14 @@ pub trait NftModule: referral::ReferralModule + reward::RewardModule + storage::
        
     
         // Actualizăm capacitatea de stocare (TCL MAX) pentru NFT
-        let additional_storage = self.calculate_storage(payment_amount.clone() * BigUint::from(2u8));
+        let additional_storage = self.calculate_additional_storage(payment_amount.clone());
         self.tcl_max(&collection_id, &nonce).update(|v| *v += additional_storage);
     
         // Distribuim tokenii de plată
         self.distribute_tokens(&caller, payment_amount);
     
         // Dacă NFT-ul nu era echipat, îl returnăm utilizatorului
-        if !is_equipped {
+        if !is_equipped && !is_loaned {
             self.send().direct(&caller, &EgldOrEsdtTokenIdentifier::esdt(collection_id.clone()), nonce, &BigUint::from(1u64));
         }
     }
@@ -366,9 +372,14 @@ pub trait NftModule: referral::ReferralModule + reward::RewardModule + storage::
     
         let caller = self.blockchain().get_caller();
         let is_equipped = self.is_equipped(&caller, &collection_id, &nonce);
+        let is_loaned = self.loaned_nfts(&caller).contains(&(collection_id.clone(), nonce.clone()));
+        let is_available = self.is_available(&caller, &collection_id, &nonce);
+
+        //Acest requirement trebuie eliminat dupa ce se rezolva problema cu metadata inter-shard(API)
+        require!(is_equipped || is_available, "nft must be equipped or not borrowed");
     
         // Dacă NFT-ul nu este echipat, verificăm și extragem detaliile transferului NFT
-        if !is_equipped {
+        if !is_equipped && !is_loaned {
             // Verificăm dacă NFT-ul a fost furnizat
             require!(nft_transfer.is_some(), "NFT not provided");
     
@@ -400,7 +411,7 @@ pub trait NftModule: referral::ReferralModule + reward::RewardModule + storage::
         }
     
         // Actualizăm capacitatea de stocare (TCL MAX) pentru NFT
-        let additional_storage = self.calculate_storage(payment_amount.clone() * BigUint::from(2u8));
+        let additional_storage = self.calculate_additional_storage(payment_amount.clone());
         self.tcl_max(&collection_id, &nonce).update(|v| *v += additional_storage);
     
         // Dacă numărul maxim de bonusuri a fost atins și numărul aleator este în intervalul corect
@@ -416,7 +427,7 @@ pub trait NftModule: referral::ReferralModule + reward::RewardModule + storage::
         }
     
         // Dacă NFT-ul nu era echipat, îl returnăm utilizatorului
-        if !is_equipped {
+        if !is_equipped && !is_loaned {
             self.send().direct(&caller, &EgldOrEsdtTokenIdentifier::esdt(collection_id.clone()), nonce, &BigUint::from(1u64));
         }
     
@@ -453,9 +464,14 @@ pub trait NftModule: referral::ReferralModule + reward::RewardModule + storage::
     
         let caller = self.blockchain().get_caller();
         let is_equipped = self.is_equipped(&caller, &collection_id, &nonce);
+        let is_loaned = self.loaned_nfts(&caller).contains(&(collection_id.clone(), nonce.clone()));
+        let is_available = self.is_available(&caller, &collection_id, &nonce);
+
+        //Acest requirement trebuie eliminat dupa ce se rezolva problema cu metadata inter-shard(API)
+        require!(is_equipped || is_available, "nft must be equipped or not borrowed");
     
         // Dacă NFT-ul nu este echipat, verificăm și extragem detaliile transferului NFT
-        if !is_equipped {
+        if !is_equipped && !is_loaned {
             // Verificăm dacă NFT-ul a fost furnizat
             require!(nft_transfer.is_some(), "NFT not provided");
     
@@ -489,11 +505,11 @@ pub trait NftModule: referral::ReferralModule + reward::RewardModule + storage::
         self.update_attributes(&collection_id, nonce.clone(), nft_quality);
     
         // Actualizăm capacitatea de stocare (TCL MAX) pentru NFT
-        let additional_storage = self.calculate_storage(payment_amount.clone() * BigUint::from(2u8));
+        let additional_storage = self.calculate_additional_storage(payment_amount.clone());
         self.tcl_max(&collection_id, &nonce).update(|v| *v += additional_storage);
     
         // Dacă NFT-ul nu era echipat, îl returnăm utilizatorului
-        if !is_equipped {
+        if !is_equipped && !is_loaned {
             self.send().direct(&caller, &EgldOrEsdtTokenIdentifier::esdt(collection_id.clone()), nonce, &BigUint::from(1u64));
         }
     
@@ -530,9 +546,14 @@ pub trait NftModule: referral::ReferralModule + reward::RewardModule + storage::
     
         let caller = self.blockchain().get_caller();
         let is_equipped = self.is_equipped(&caller, &collection_id, &nonce);
+        let is_loaned = self.loaned_nfts(&caller).contains(&(collection_id.clone(), nonce.clone()));
+        let is_available = self.is_available(&caller, &collection_id, &nonce);
+
+        //Acest requirement trebuie eliminat dupa ce se rezolva problema cu metadata inter-shard(API)
+        require!(is_equipped || is_available, "nft must be equipped or not borrowed");
     
         // Dacă NFT-ul nu este echipat, verificăm și extragem detaliile transferului NFT
-        if !is_equipped {
+        if !is_equipped && !is_loaned {
             // Verificăm dacă NFT-ul a fost furnizat
             require!(nft_transfer.is_some(), "NFT not provided");
     
@@ -574,11 +595,11 @@ pub trait NftModule: referral::ReferralModule + reward::RewardModule + storage::
         }
     
         // Actualizăm capacitatea de stocare (TCL MAX) pentru NFT
-        let additional_storage = self.calculate_storage(payment_amount.clone() * BigUint::from(2u8));
+        let additional_storage = self.calculate_additional_storage(payment_amount.clone());
         self.tcl_max(&collection_id, &nonce).update(|v| *v += additional_storage);
     
         // Dacă NFT-ul nu era echipat, îl returnăm utilizatorului
-        if !is_equipped {
+        if !is_equipped && !is_loaned {
             self.send().direct(&caller, &EgldOrEsdtTokenIdentifier::esdt(collection_id.clone()), nonce, &BigUint::from(1u64));
         }
     
@@ -614,9 +635,14 @@ pub trait NftModule: referral::ReferralModule + reward::RewardModule + storage::
     
         let caller = self.blockchain().get_caller();
         let is_equipped = self.is_equipped(&caller, &collection_id, &nonce);
+        let is_loaned = self.loaned_nfts(&caller).contains(&(collection_id.clone(), nonce.clone()));
+        let is_available = self.is_available(&caller, &collection_id, &nonce);
+
+        //Acest requirement trebuie eliminat dupa ce se rezolva problema cu metadata inter-shard(API)
+        require!(is_equipped || is_available, "nft must be equipped or not borrowed");
     
         // Dacă NFT-ul nu este echipat, verificăm și extragem detaliile transferului NFT
-        if !is_equipped {
+        if !is_equipped && !is_loaned {
             // Verificăm dacă NFT-ul a fost furnizat
             require!(nft_transfer.is_some(), "NFT not provided");
     
@@ -649,11 +675,11 @@ pub trait NftModule: referral::ReferralModule + reward::RewardModule + storage::
         self.update_attributes(&collection_id, nonce.clone(), nft_quality);
     
         // Actualizăm capacitatea de stocare (TCL MAX) pentru NFT
-        let additional_storage = self.calculate_storage(payment_amount.clone() * BigUint::from(2u8));
+        let additional_storage = self.calculate_additional_storage(payment_amount.clone());
         self.tcl_max(&collection_id, &nonce).update(|v| *v += additional_storage);
     
         // Dacă NFT-ul nu era echipat, îl returnăm utilizatorului
-        if !is_equipped {
+        if !is_equipped && !is_loaned {
             self.send().direct(&caller, &EgldOrEsdtTokenIdentifier::esdt(collection_id.clone()), nonce, &BigUint::from(1u64));
         }
     
@@ -689,9 +715,14 @@ pub trait NftModule: referral::ReferralModule + reward::RewardModule + storage::
     
         let caller = self.blockchain().get_caller();
         let is_equipped = self.is_equipped(&caller, &collection_id, &nonce);
+        let is_loaned = self.loaned_nfts(&caller).contains(&(collection_id.clone(), nonce.clone()));
+        let is_available = self.is_available(&caller, &collection_id, &nonce);
+
+        //Acest requirement trebuie eliminat dupa ce se rezolva problema cu metadata inter-shard(API)
+        require!(is_equipped || is_available, "nft must be equipped or not borrowed");
     
         // Dacă NFT-ul nu este echipat, verificăm și extragem detaliile transferului NFT
-        if !is_equipped {
+        if !is_equipped && !is_loaned {
             // Verificăm dacă NFT-ul a fost furnizat
             require!(nft_transfer.is_some(), "NFT not provided");
     
@@ -720,11 +751,11 @@ pub trait NftModule: referral::ReferralModule + reward::RewardModule + storage::
         self.socket_count(&collection_id, &nonce).update(|v| *v += 1u8);
     
         // Actualizăm capacitatea de stocare (TCL MAX) pentru NFT
-        let additional_storage = self.calculate_storage(payment_amount.clone() * BigUint::from(2u8));
+        let additional_storage = self.calculate_additional_storage(payment_amount.clone());
         self.tcl_max(&collection_id, &nonce).update(|v| *v += additional_storage);
     
         // Dacă NFT-ul nu era echipat, îl returnăm utilizatorului
-        if !is_equipped {
+        if !is_equipped && !is_loaned {
             self.send().direct(&caller, &EgldOrEsdtTokenIdentifier::esdt(collection_id.clone()), nonce, &BigUint::from(1u64));
         }
     
@@ -760,9 +791,14 @@ pub trait NftModule: referral::ReferralModule + reward::RewardModule + storage::
     
         let caller = self.blockchain().get_caller();
         let is_equipped = self.is_equipped(&caller, &collection_id, &nonce);
+        let is_loaned = self.loaned_nfts(&caller).contains(&(collection_id.clone(), nonce.clone()));
+        let is_available = self.is_available(&caller, &collection_id, &nonce);
+
+        //Acest requirement trebuie eliminat dupa ce se rezolva problema cu metadata inter-shard(API)
+        require!(is_equipped || is_available, "nft must be equipped or not borrowed");
     
         // Dacă NFT-ul nu este echipat, verificăm și extragem detaliile transferului NFT
-        if !is_equipped {
+        if !is_equipped && !is_loaned {
             // Verificăm dacă NFT-ul a fost furnizat
             require!(nft_transfer.is_some(), "NFT not provided");
     
@@ -802,11 +838,11 @@ pub trait NftModule: referral::ReferralModule + reward::RewardModule + storage::
         }
     
         // Actualizăm capacitatea de stocare (TCL MAX) pentru NFT
-        let additional_storage = self.calculate_storage(payment_amount.clone() * BigUint::from(2u8));
+        let additional_storage = self.calculate_additional_storage(payment_amount.clone());
         self.tcl_max(&collection_id, &nonce).update(|v| *v += additional_storage);
     
         // Dacă NFT-ul nu era echipat, îl returnăm utilizatorului
-        if !is_equipped {
+        if !is_equipped && !is_loaned {
             self.send().direct(&caller, &EgldOrEsdtTokenIdentifier::esdt(collection_id.clone()), nonce, &BigUint::from(1u64));
         }
     
@@ -823,54 +859,22 @@ pub trait NftModule: referral::ReferralModule + reward::RewardModule + storage::
         // Obținere transferuri ESDT
         let transfers = self.call_value().all_esdt_transfers();
         let mut payment_amount = BigUint::zero();
-        let mut nft_transfer: Option<EsdtTokenPayment<Self::Api>> = None;
     
         for transfer in transfers.iter() {
             if transfer.token_identifier == self.payment_token_id().get() {
                 payment_amount = transfer.amount.clone();
             }
-    
-            if self.is_collection_set(&transfer.token_identifier) {
-                nft_transfer = Some(transfer.clone());
-            }
         }
     
         let caller = self.blockchain().get_caller();
-        let is_equipped = self.is_equipped(&caller, &collection_id, &nonce);
-    
-        // Dacă NFT-ul nu este echipat, verificăm și extragem detaliile transferului NFT
-        if !is_equipped {
-            // Verificăm dacă NFT-ul a fost furnizat
-            require!(nft_transfer.is_some(), "NFT not provided");
-    
-            // Extragem detaliile necesare din transferul NFT
-            let nft_transfer = nft_transfer.unwrap();
-            let nft_nonce = nft_transfer.token_nonce;
-            let nft_id = nft_transfer.token_identifier;
-            let nft_amount = nft_transfer.amount;
-    
-            // Verificăm că doar un NFT a fost trimis și că acesta corespunde detaliilor așteptate
-            require!(nft_amount == BigUint::from(1u64), "Only one NFT can be sent at a time");
-            require!(nft_id == collection_id && nft_nonce == nonce, "NFT mismatch");
-        }
-    
-        // Obținem și verificăm calitatea actuală a NFT-ului și cristalizarea
-        let nft_quality = self.nft_quality(&collection_id, &nonce).get();
-        let crystal_count = self.crystal_count(&collection_id, &nonce).get();
-        let nft_wave = self.nft_wave(&collection_id, &nonce).get();
-        let crystal_count_max = self.max_socket(&collection_id).get(nft_wave as usize);
+        let tcl_usd_price = self.tcl_usd_price().get();
     
         // Verificări suplimentare
         require!(self.is_collection_set(&collection_id), "Collection not set");
     
         // Calculăm și actualizăm capacitatea de stocare (TCL MAX) pentru NFT
-        let additional_storage = self.calculate_storage(payment_amount.clone() * BigUint::from(2u8));
+        let additional_storage = self.calculate_additional_storage(payment_amount.clone());
         self.tcl_max(&collection_id, &nonce).update(|v| *v += additional_storage);
-    
-        // Dacă NFT-ul nu era echipat, îl returnăm utilizatorului
-        if !is_equipped {
-            self.send().direct(&caller, &EgldOrEsdtTokenIdentifier::esdt(collection_id.clone()), nonce, &BigUint::from(1u64));
-        }
     
         // Distribuim tokenii de plată
         self.distribute_tokens(&caller, payment_amount);

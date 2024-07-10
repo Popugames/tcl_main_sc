@@ -10,10 +10,10 @@ pub mod equip;
 pub mod types;
 pub mod storage;
 pub mod utils;
-
+pub mod lending;
 
 #[multiversx_sc::contract]
-pub trait Contract : reward::RewardModule + equip::EquipModule + nft::NftModule + referral::ReferralModule + storage::Storage + utils::Utils{
+pub trait Contract : reward::RewardModule + equip::EquipModule + nft::NftModule + referral::ReferralModule + storage::Storage + utils::Utils + lending::LendingModule{
 
     #[init]
     fn init(&self,token_id:EgldOrEsdtTokenIdentifier) {
