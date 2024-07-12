@@ -11,6 +11,7 @@ pub enum EquipSlot {
     Bracelet,
     Shoes,
     Earrings,
+    Boost,
     None,
 }
 
@@ -25,6 +26,7 @@ impl EquipSlot {
             5 => Some(EquipSlot::Bracelet),
             6 => Some(EquipSlot::Shoes),
             7 => Some(EquipSlot::Earrings),
+            8 => Some(EquipSlot::Boost),
             _ => Some(EquipSlot::None),
         }
     }

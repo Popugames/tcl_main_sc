@@ -81,7 +81,9 @@ pub trait RewardModule: storage::Storage + utils::Utils{
             "apr_max not set"
         );
 
-        let user_reward = self.calculate_reward(user_staked_amount);
+        //Calculate rewards
+        let user_reward = self.calculate_reward(&wallet_address, user_staked_amount);
+
 
         //GLOBAL
         self.total_rewards_released().update(|v| *v += &user_reward);
@@ -104,6 +106,7 @@ pub trait RewardModule: storage::Storage + utils::Utils{
         // Obține informații despre apelant și starea curentă
         let caller = self.blockchain().get_caller();
         let current_epoch = self.blockchain().get_block_epoch();
+        let next_epoch = &current_epoch + &1u64; 
         let last_claimed_lending_epoch = self.last_claimed_lending_epoch(&caller).get();
         let user_loaned_amount = self.user_loaned_amount(&caller).get();
         let server_wallet = self.blockchain().get_caller();
@@ -125,10 +128,11 @@ pub trait RewardModule: storage::Storage + utils::Utils{
             self.apr_max().get()>0,
             "apr_max not set"
         );
-    
-        // Calculează recompensa utilizatorului
-        let user_reward = self.calculate_reward(user_loaned_amount);
-    
+        
+        //Calculate rewards and boost rewards
+        let user_reward = self.calculate_reward(&wallet_address, user_loaned_amount);
+
+
         // Actualizează recompensele totale eliberate
         self.total_rewards_released().update(|v| *v += &user_reward);
     
@@ -138,6 +142,9 @@ pub trait RewardModule: storage::Storage + utils::Utils{
         //Setam epoca curenta pentru fiecare NFT dat imprumut
         for (collection_id, nonce) in self.loaned_nfts(&caller).iter() {
             self.last_nft_claimed_epoch(&collection_id, &nonce).set(&current_epoch);
+
+            // Adaugă NFT-ul în lista disponibilă pentru urmatoarea epoca
+            self.available_borrow_nfts(&next_epoch).insert((collection_id.clone(), nonce.clone()));
         }
     
         // Trimite recompensa către portofelul utilizatorului
@@ -148,6 +155,48 @@ pub trait RewardModule: storage::Storage + utils::Utils{
             &user_reward
         );
     }
+
+    #[endpoint(claimBorrowingRewards)]
+    fn claim_borrowing_rewards(&self,wallet_address: ManagedAddress) {
+        let server_wallet = self.blockchain().get_caller();
+        let current_epoch = self.blockchain().get_block_epoch();
+        let user_borrowed_amount = self.user_borrowed_amount(&wallet_address, &current_epoch).get();
+        let is_borrowed = !self.user_borrowed_amount(&wallet_address, &current_epoch).is_empty();
+        let user_borrowed_amount = self.user_borrowed_amount(&wallet_address, &current_epoch).get();
+
+
+        require!(
+            server_wallet == self.server_wallet().get(),
+            "invalid caller"
+        );
+        require!(
+            is_borrowed,
+            "not borrowed"
+        );
+        require!(
+            self.apr_max().get()>0,
+            "apr_max not set"
+        );
+
+        let user_reward = self.calculate_reward(&wallet_address, user_borrowed_amount);
+
+        //GLOBAL
+        self.total_rewards_released().update(|v| *v += &user_reward);
+
+        self.last_borrowed_claimed_epoch(&wallet_address).set(&current_epoch);
+        self.borrowed_nft(&wallet_address, &current_epoch).clear();
+        self.user_borrowed_amount(&wallet_address, &current_epoch).clear();
+       
+        //SEND TOKENS
+        self.send().direct(
+            &wallet_address,
+            &self.reward_token_id().get(),
+            0u64,
+            &user_reward
+        );
+
+    }
+    
     
 
     

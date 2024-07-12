@@ -12,6 +12,7 @@ const NORMALIZATION_COEFFICIENT: u8 = 200; //această valoare este un coeficient
 const DEFAULT_REFERRAL: &[u8] = "LANDER23".as_bytes();
 
 use crate::storage;
+use crate::types::EquipSlot;
 
 #[multiversx_sc::module]
 pub trait Utils: storage::Storage {
@@ -50,7 +51,7 @@ pub trait Utils: storage::Storage {
     }
 
     #[endpoint(calculateReward)]
-    fn calculate_reward(&self, user_staked_amount: BigUint) -> BigUint {
+    fn calculate_reward(&self,wallet_address: &ManagedAddress, user_staked_amount: BigUint) -> BigUint {
 
         let total_reserve = self.total_reserve_amount().get();
         let total_staked_amount = self.total_staked_amount().get();
@@ -62,17 +63,40 @@ pub trait Utils: storage::Storage {
         }
 
         let global_daily_reward = (total_reserve/BigUint::from(100u64))/BigUint::from(30u64); 
-        let user_reward =  (global_daily_reward*(&user_staked_amount *10000000000u64/ total_staked_amount))/10000000000u64;
+        let normal_reward =  (global_daily_reward*(&user_staked_amount *10000000000u64/ total_staked_amount))/10000000000u64;
         let max_reward = (user_staked_amount * BigUint::from(apr_max)/BigUint::from(100u64))/BigUint::from(365u64);
 
-        if user_reward>max_reward
+
+        let user_reward = if normal_reward > max_reward
         {
-            return max_reward;
+            max_reward
         }
         else
         {
-            return user_reward;
+            normal_reward
+        };
+
+        //Calculate boost rewards
+        let total_rewards = if self.equipped_nfts(&wallet_address).contains_key(&EquipSlot::Boost)
+        {
+            let (collection_id, nonce) = self.equipped_nfts(&wallet_address).get(&EquipSlot::Boost).unwrap();
+            if nonce == 1
+            {
+                user_reward.clone() + user_reward.clone() * BigUint::from(10u64) / BigUint::from(100u64)
+            }else if nonce == 2
+            {
+                user_reward.clone() + user_reward.clone() * BigUint::from(7u64) / BigUint::from(100u64)
+            }else
+            {
+                user_reward.clone() + user_reward.clone() * BigUint::from(5u64) / BigUint::from(100u64)
+            }
         }
+        else
+        {
+            user_reward
+        };
+
+        total_rewards
     }
 
     #[view(buildUrisVec)]
@@ -534,9 +558,14 @@ pub trait Utils: storage::Storage {
         let current_epoch = self.blockchain().get_block_epoch();
         let last_claimed_epoch = self.last_claimed_epoch(&wallet_address).get();
         let last_claimed_lending_epoch = self.last_claimed_lending_epoch(&wallet_address).get();
-        let daily_rewads = self.calculate_reward(user_staked_amount.clone());
-        let daily_loaned_rewads = self.calculate_reward(user_loaned_amount.clone());
-        let block_round = self.blockchain().get_block_round();
+
+        let daily_rewads = if self.user_borrowed_amount(&wallet_address, &current_epoch).is_empty(){
+            self.calculate_reward(&wallet_address, user_staked_amount.clone())
+        }else{
+            self.calculate_reward(&wallet_address, self.user_borrowed_amount(&wallet_address, &current_epoch).get())
+        };
+
+        let daily_loaned_rewads = self.calculate_reward(&wallet_address, user_loaned_amount.clone());
 
         return_buffer.append(&self.biguint_to_ascii(&total_reserve_amount)); //Total Reserve Amount
         return_buffer.append(&ManagedBuffer::new_from_bytes(b" "));
@@ -559,8 +588,7 @@ pub trait Utils: storage::Storage {
         return_buffer.append(&self.biguint_to_ascii(&daily_rewads)); //Daily Rewards
         return_buffer.append(&ManagedBuffer::new_from_bytes(b" "));
         return_buffer.append(&self.biguint_to_ascii(&daily_loaned_rewads)); //Daily Rewards
-        return_buffer.append(&ManagedBuffer::new_from_bytes(b" "));
-        return_buffer.append(&self.decimal_to_ascii((block_round as u32).try_into().unwrap())); //Round
+        
     
         return_buffer
     }

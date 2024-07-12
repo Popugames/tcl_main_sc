@@ -15,11 +15,16 @@ pub trait EquipModule: nft::NftModule + referral::ReferralModule + reward::Rewar
     #[payable("*")]
     #[endpoint(equipNft)]
     fn equip_nft(&self) {
+
         // Verifică dacă ID-ul tokenului de plată este setat
         require!(!self.payment_token_id().is_empty(), "Payment token ID not set");
     
         // Obține adresa apelantului
         let caller = self.blockchain().get_caller();
+        let current_epoch = self.blockchain().get_block_epoch();
+        let not_borrowed = self.user_borrowed_amount(&caller, &current_epoch).is_empty();
+
+        require!(not_borrowed, "can t equip when borrowed");
         
         // Obține toate transferurile ESDT efectuate în timpul acestui apel
         let transfers = self.call_value().all_esdt_transfers();
@@ -129,8 +134,20 @@ pub trait EquipModule: nft::NftModule + referral::ReferralModule + reward::Rewar
     #[endpoint(getEquippedNfts)]
     fn get_equipped_nfts(&self, wallet_address: ManagedAddress) -> ManagedBuffer {
         let mut equipped_nfts_str = ManagedBuffer::new_from_bytes(b"");
+        let current_epoch = self.blockchain().get_block_epoch();
+        let is_borrowed =  !self.user_borrowed_amount(&wallet_address, &current_epoch).is_empty();
+        let is_borrowed_buffer =  if is_borrowed
+        {
+            ManagedBuffer::from("1")
+        }else{
+            ManagedBuffer::from("0")
+        };
     
-        for slot_index in 0..8 {
+        //equipped_nfts_str.append(&is_borrowed);
+        //equipped_nfts_str.append(&ManagedBuffer::new_from_bytes(b","));
+
+        //EQUIPPED
+        for slot_index in 0..9 {
             let equip_slot = EquipSlot::from_i32(slot_index).unwrap();
             match self.equipped_nfts(&wallet_address).get(&equip_slot) {
                 Some((collection_id, nonce)) => {
@@ -142,12 +159,31 @@ pub trait EquipModule: nft::NftModule + referral::ReferralModule + reward::Rewar
                     equipped_nfts_str.append(&self.decimal_to_ascii((nonce as u32).try_into().unwrap()));
                     equipped_nfts_str.append(&ManagedBuffer::new_from_bytes(b" "));
                     equipped_nfts_str.append(&self.biguint_to_ascii(&tcl_count));
+                    equipped_nfts_str.append(&ManagedBuffer::new_from_bytes(b" "));
+                    equipped_nfts_str.append(&is_borrowed_buffer);
                     equipped_nfts_str.append(&ManagedBuffer::new_from_bytes(b","));
                 },
                 None => {}
             }
         }
-    
+
+        //BORROWED
+        if is_borrowed
+        {
+            let (collection_id, nonce) = self.borrowed_nft(&wallet_address, &current_epoch).get();
+            let tcl_count = self.tcl_count(&collection_id, &nonce).get();
+
+            equipped_nfts_str.append(&collection_id.into_managed_buffer());
+            equipped_nfts_str.append(&ManagedBuffer::new_from_bytes(b" "));
+            equipped_nfts_str.append(&self.decimal_to_ascii((nonce as u32).try_into().unwrap()));
+            equipped_nfts_str.append(&ManagedBuffer::new_from_bytes(b" "));
+            equipped_nfts_str.append(&self.biguint_to_ascii(&tcl_count));
+            equipped_nfts_str.append(&ManagedBuffer::new_from_bytes(b" "));
+            equipped_nfts_str.append(&is_borrowed_buffer);
+            equipped_nfts_str.append(&ManagedBuffer::new_from_bytes(b","));
+
+        }
+
         equipped_nfts_str
     }
 
@@ -185,7 +221,13 @@ pub trait EquipModule: nft::NftModule + referral::ReferralModule + reward::Rewar
             nfts_data_str.append(&ManagedBuffer::new_from_bytes(b" ")); 
 
             let nft_wave = self.nft_wave(&collection_id, &nonce).get();
-            let max_socket = self.max_socket(&collection_id).get(nft_wave as usize);
+            let max_socket = if self.max_socket(&collection_id).len() > 0{
+                self.max_socket(&collection_id).get(nft_wave as usize)
+            }else{
+                0u8
+            };
+
+
             nfts_data_str.append(&self.decimal_to_ascii((max_socket as u32).try_into().unwrap())); // max_socket
             //nfts_data_str.append(&ManagedBuffer::new_from_bytes(b" ")); 
 

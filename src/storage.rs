@@ -284,6 +284,16 @@ pub trait Storage {
     #[storage_mapper("last_nft_claimed_epoch")]
     fn last_nft_claimed_epoch(&self,collection_id: &TokenIdentifier, nonce: &u64) -> SingleValueMapper<u64>;
 
+    #[storage_mapper("last_borrowed_claimed_epoch")]
+    fn last_borrowed_claimed_epoch(&self,wallet_address: &ManagedAddress) -> SingleValueMapper<u64>;
+
+    #[endpoint(getUserBorrowedAmount)]
+    #[storage_mapper("user_borrowed_amount")]
+    fn user_borrowed_amount(&self, wallet_address: &ManagedAddress, epoch: &u64) -> SingleValueMapper<BigUint>;
+
+    #[storage_mapper("borrowed_nft")]
+    fn borrowed_nft(&self,wallet_address: &ManagedAddress, epoch: &u64) -> SingleValueMapper<(TokenIdentifier, u64)>;
+
 //
 
 }
