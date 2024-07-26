@@ -205,8 +205,6 @@ pub trait Storage {
     #[view(getTeamWallet)]
     #[storage_mapper("team_wallet")]
     fn team_wallet(&self) -> SingleValueMapper<ManagedAddress>;
-    //TODO set team wallet
-
 
     #[view(getTotalEarnedAllReferrals)]
     #[storage_mapper("total_earned_all_referrals")]
@@ -228,6 +226,8 @@ pub trait Storage {
     #[storage_mapper("total_transactions_all_invitees")]
     fn total_transactions_all_invitees(&self) -> SingleValueMapper<u64>;
 
+    #[storage_mapper("referral_code_invitees")]
+    fn referral_code_invitees(&self,referral_code: &ManagedBuffer) -> UnorderedSetMapper<ManagedAddress>;
 
 //END
 

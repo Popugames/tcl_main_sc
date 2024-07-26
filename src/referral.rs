@@ -71,13 +71,16 @@ pub trait ReferralModule: storage::Storage{
             "you have already set a code"
         );
 
+        let in_list_invite = self.referral_code_invitees(&referral_code).contains(&invitee);
+
         //INDIVIDUAL REFERRAL
         self.referral_code_invitee(&invitee).set(&referral_code);
         self.referral_invitees(&referral_code).update(|v| *v += 1);
+        self.referral_code_invitees(&referral_code).insert(invitee);
 
         //STATISTICS
         self.total_invitees_all_referrals().update(|v| *v += 1);
-        if self.referral_invitees(&referral_code).get() == 25
+        if self.referral_invitees(&referral_code).get() >= 5 && !in_list_invite
         {
             self.active_referral_codes().update(|v| *v += 1);
         }

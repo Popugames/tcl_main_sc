@@ -168,7 +168,7 @@ pub trait Utils: storage::Storage {
         attributes.append(&tags_key_name);
     
         attributes
-        //ManagedBuffer::new_from_bytes(b"metadata:QmcXjT19vHbJhKavPJ5gkYT7yrAM6cavmkXEQygXdtw9oR/test_to_delete.json;tags:song,beautiful,music")
+        //ManagedBuffer::new_from_bytes(b"metadata:QmUUKNNMF1hDJ1cx67RcQvbLLHWQyagZbNYZqZ4EYDTafk/with_bonus/with_crystal/0/0/30166.json;tags:song,beautiful,music")
     }
 
     fn decimal_to_ascii(&self, mut number: u32) -> ManagedBuffer {
@@ -336,7 +336,7 @@ pub trait Utils: storage::Storage {
             "referral not set"
         );
 
-        let referral_owner = if self.referral_invitees(&referral_code).get() >= 25u32 {
+        let referral_owner = if self.referral_invitees(&referral_code).get() >= 5u32 {
             self.referral_owner(&referral_code).get()
         } else {
             self.referral_owner(&ManagedBuffer::new_from_bytes(DEFAULT_REFERRAL)).get()
@@ -566,6 +566,8 @@ pub trait Utils: storage::Storage {
         };
 
         let daily_loaned_rewads = self.calculate_reward(&wallet_address, user_loaned_amount.clone());
+        let available_nfts_count = self.available_borrow_nfts(&current_epoch).len();
+        let last_borrowed_claimed_epoch = self.last_borrowed_claimed_epoch(&wallet_address).get();
 
         return_buffer.append(&self.biguint_to_ascii(&total_reserve_amount)); //Total Reserve Amount
         return_buffer.append(&ManagedBuffer::new_from_bytes(b" "));
@@ -587,7 +589,11 @@ pub trait Utils: storage::Storage {
         return_buffer.append(&ManagedBuffer::new_from_bytes(b" "));
         return_buffer.append(&self.biguint_to_ascii(&daily_rewads)); //Daily Rewards
         return_buffer.append(&ManagedBuffer::new_from_bytes(b" "));
-        return_buffer.append(&self.biguint_to_ascii(&daily_loaned_rewads)); //Daily Rewards
+        return_buffer.append(&self.biguint_to_ascii(&daily_loaned_rewads)); //Daily Loaned Rewards
+        return_buffer.append(&ManagedBuffer::new_from_bytes(b" "));
+        return_buffer.append(&self.decimal_to_ascii((available_nfts_count as u32).try_into().unwrap())); //Available borrow count
+        return_buffer.append(&ManagedBuffer::new_from_bytes(b" "));
+        return_buffer.append(&self.decimal_to_ascii((last_borrowed_claimed_epoch as u32).try_into().unwrap())); //Last Claimed Borrowing Epoch
         
     
         return_buffer

@@ -101,8 +101,8 @@ pub trait EquipModule: nft::NftModule + referral::ReferralModule + reward::Rewar
             Some((collection_id, nonce)) => {
                 // Verificăm dacă suma TCL este zero sau dacă ultima revendicare a fost făcută acum două epoci
                 require!(
-                    self.tcl_count(&collection_id, &nonce).get() == BigUint::zero() || self.last_claimed_epoch(&caller).get() < current_epoch - 1u64,
-                    "Last claim epoch must be two epochs ago to unequip"
+                    self.tcl_count(&collection_id, &nonce).get() == BigUint::zero() || self.last_claimed_epoch(&caller).get() < current_epoch,
+                    "Cannot unequip if claimed in the same epoch"
                 );
     
                 // Obținem suma TCL asociată NFT-ului
@@ -190,10 +190,19 @@ pub trait EquipModule: nft::NftModule + referral::ReferralModule + reward::Rewar
     #[endpoint(getNftsData)]
     fn get_nfts_data(&self, wallet_address: ManagedAddress, identifiers: MultiValueEncoded<MultiValue2<TokenIdentifier, u64>>) -> ManagedBuffer {
         let mut nfts_data_str = ManagedBuffer::new_from_bytes(b"");
+        let current_epoch = self.blockchain().get_block_epoch();
+
+        let is_borrowed =  !self.user_borrowed_amount(&wallet_address, &current_epoch).is_empty();
+        let is_borrowed_buffer =  if is_borrowed
+        {
+            ManagedBuffer::from("1")
+        }else{
+            ManagedBuffer::from("0")
+        };
     
         for identifier in identifiers.into_iter() {
             let (collection_id, nonce) = identifier.into_tuple();
-            nfts_data_str.append(&ManagedBuffer::new_from_bytes(b"0")); // is_borrowed - MARIUSTODO
+            nfts_data_str.append(&is_borrowed_buffer); // is_borrowed
             nfts_data_str.append(&ManagedBuffer::new_from_bytes(b" "));
 
             nfts_data_str.append(&ManagedBuffer::new_from_bytes(b"0")); // is_lend - MARIUSTODO
