@@ -56,7 +56,11 @@ pub trait Utils: storage::Storage {
         let total_reserve = self.total_reserve_amount().get();
         let total_staked_amount = self.total_staked_amount().get();
         let apr_max = self.apr_max().get();
-        let staked_amount = user_staked_amount + self.user_boost_staked_amount(&wallet_address).get();
+        let staked_amount = if is_boost {
+            user_staked_amount + self.user_boost_staked_amount(&wallet_address).get()
+        }else{
+            user_staked_amount
+        };
 
         if &staked_amount == &BigUint::zero()
         {
@@ -78,7 +82,7 @@ pub trait Utils: storage::Storage {
         };
 
         //Calculate boost rewards
-        let total_rewards = if self.equipped_nfts(&wallet_address).contains_key(&EquipSlot::Boost) && is_boost
+        let total_rewards = if self.equipped_nfts(&wallet_address).contains_key(&EquipSlot::Boost)
         {
             let (collection_id, nonce) = self.equipped_nfts(&wallet_address).get(&EquipSlot::Boost).unwrap();
             if nonce == 1
