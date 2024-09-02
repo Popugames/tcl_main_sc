@@ -1,30 +1,33 @@
-USER_PEM="/home/elrond/SmartContracts/walletKey.pem"
-#USER_PEM="/home/elrond/SmartContracts/walletShard2.pem"
+#USER_PEM="/home/elrond/SmartContracts/walletKey.pem"
+USER_PEM="/home/elrond/SmartContracts/tcl-deployer.pem"
 
 #PROXY="https://devnet-gateway.multiversx.com"
-PROXY="https://testnet-gateway.multiversx.com"
-#PROXY="https://gateway.multiversx.com"
+#PROXY="https://testnet-gateway.multiversx.com"
+PROXY="https://gateway.multiversx.com"
 
 #CHAIN_ID="D"
-CHAIN_ID="T"
-#CHAIN_ID="1"
+#CHAIN_ID="T"
+CHAIN_ID="1"
 
 #TOKEN_ID="XTCL-a8e1ec" #devnet
-TOKEN_ID="XTCL-467992" #testnet
-#TOKEN_ID="TCL-fe459d" #mainnet
+#TOKEN_ID="XTCL-629e44" #testnet
+TOKEN_ID="TCL-fe459d" #mainnet
 
 
-SC_ADDRESS=erd1qqqqqqqqqqqqqpgqsk0tqdpd4mx728k0uece45pahh4u0p03r8qszmfadm
-#SC_ADDRESS=erd1qqqqqqqqqqqqqpgqsk0tqdpd4mx728k0uece45pahh4u0p03r8qszmfadm #testnet
+SC_ADDRESS=erd1qqqqqqqqqqqqqpgqm77vv5dcqs6kuzhj540vf67f90xemypd0ufsygvnvk
+#SC_ADDRESS=erd1qqqqqqqqqqqqqpgq0let8nafpuzwstfltsq7sfq8xhgljk3wr8qsspcvz2 #testnet
+#SC_ADDRESS=erd1qqqqqqqqqqqqqpgqm77vv5dcqs6kuzhj540vf67f90xemypd0ufsygvnvk #mainnet
 
-USER_ADDRESS="erd1hjerm8g7fxlt4vn5x6e3u6ge2r9ttpfzr06swy78suh8rt8ldwcswal2dl"
+USER_ADDRESS="erd1tpayjteeg67rq7me94k36705dh2c077xjsmhzdmkkwjeg0w00ufsmmltyc"
 #USER_ADDRESS="erd1as8u30zlk7n6c3kvcwkegwq5ujmymaadlwyedcj0ywsp785wyt9q36h0n0"
+#USER_ADDRESS="erd18lsmq9rldm52syrgqzpwrjrvqlsxprgvp9v6ne5qtjymqgzgr8qs9ngtcl"
 
 TEAM_WALLET="erd16sm8ez0f8f8t4cuxzspsxmfrt0wkst6gc0zntazu0ef9nyjw9nmsrakr8k"
 #NEW_USER_ADDRESS="erd1tpayjteeg67rq7me94k36705dh2c077xjsmhzdmkkwjeg0w00ufsmmltyc"
 
 SERVER_WALLET="erd18lsmq9rldm52syrgqzpwrjrvqlsxprgvp9v6ne5qtjymqgzgr8qs9ngtcl"
-#NEW_USER_ADDRESS="erd1tpayjteeg67rq7me94k36705dh2c077xjsmhzdmkkwjeg0w00ufsmmltyc"
+#SERVER_WALLET="erd18lsmq9rldm52syrgqzpwrjrvqlsxprgvp9v6ne5qtjymqgzgr8qs9ngtcl" #testnet
+#SERVER_WALLET="erd1tpayjteeg67rq7me94k36705dh2c077xjsmhzdmkkwjeg0w00ufsmmltyc" #mainnet
 
 
 TOKEN_ID_HEX="0x$(echo -n ${TOKEN_ID} | xxd -p -u | tr -d '\n')"
@@ -69,10 +72,10 @@ for DYNAMIC_VALUE in "${DYNAMIC_VALUES[@]}"; do
     fi
 done
 
-NFT_NONCE=30
+NFT_NONCE=6
 
 deploy() {
-    mxpy --verbose contract deploy\
+    mxpy --verbose contract deploy \
     --bytecode="/home/elrond/SmartContracts/tcl_main_sc/output/tcl_main_sc.wasm" \
     --recall-nonce --pem=${USER_PEM} \
     --metadata-payable \
@@ -83,7 +86,7 @@ deploy() {
 }
 upgrade() {
     mxpy --verbose contract upgrade ${SC_ADDRESS} \
-    --bytecode="/home/elrond/SmartContracts/tcl_main_sc/output/tcl_main_sc.wasm"\
+    --bytecode="/home/elrond/SmartContracts/tcl_main_sc/output/tcl_main_sc.wasm" \
     --recall-nonce --pem=${USER_PEM} \
     --metadata-payable \
     --gas-limit=200000000 \
@@ -92,27 +95,27 @@ upgrade() {
     --arguments ${TOKEN_ID_HEX} || return
 }
 
-COLLECTION_ID="TCLARMOUR-7d143c" #------------------------------------------------------------------------------------1
+COLLECTION_ID="TCLBOOST-88ee35" #------------------------------------------------------------------------------------1
 COLLECTION_ID_HEX="0x$(echo -n ${COLLECTION_ID} | xxd -p -u | tr -d '\n')"
-NFT_NAME="Armour" #----000000000000000--------------------------------------------------------------------------------2
+NFT_NAME="Boost" #----000000000000000--------------------------------------------------------------------------------2
 NFT_NAME_HEX="0x$(echo -n ${NFT_NAME} | xxd -p -u | tr -d '\n')"
-NFT_PRICE=1000000000000000000000 #1000000000000000000000 = 1000
-NFT_MAX=300 #---------------------------------------------------------------------------------------------------------3
-ROYALTIES=500 #1000=10%
+NFT_PRICE=10000000000000000000000 #1000000000000000000000 = 1000
+NFT_MAX=365 #---------------------------------------------------------------------------------------------------------3
+ROYALTIES=1000 #1000=10%
 MINT_TOKEN_ID=${TOKEN_ID_HEX}
 NEED_SOCKET=false #---------------------------------------------------------------------------------------------------4
 
 #---------------------------------------------------------------------------------------------------------------------5
-IMAGE_CID=("QmYwxLMprE1wMr5efvB5wFvECB4nZZ1AtSF3XcwzS6xRu6" "QmYwxLMprE1wMr5efvB5wFvECB4nZZ1AtSF3XcwzS6xRu6")
+IMAGE_CID=("QmWP7saJZf3P966QNq15844rn6FFyuGuKAyMAVUciWhBCP" "QmTyPE3WZ7EXdQgXa2k9HokVK9TbigsNvUZNbgxUr9SDfx" "QmXtBcLAE3w799SEkAmrc17UQNfU93eEiAooevVpMgLjPt")
 
 #---------------------------------------------------------------------------------------------------------------------6
-METADATA_CID=("QmbPf4uzDQaYoZWgC4EeqSTJMtbntcVTpgSGiikiJn48RP" "QmbPf4uzDQaYoZWgC4EeqSTJMtbntcVTpgSGiikiJn48RP")
+METADATA_CID=("QmaDdkyorz7V16htXuQskMGn1jEpfamNNNQZ3UuAFTLfV7" "QmaDdkyorz7V16htXuQskMGn1jEpfamNNNQZ3UuAFTLfV7" "QmdBtMrAd8rJVw1cgGG6KHoegcYV2aeMKzKrNxPDUP6ZWB")
 
-NFT_COUNT=(300 200) #limited by NFT_MAX
-MAX_SOCKET=(3 3) #----------------------------------------------------------------------------------------------------7
-MAX_CRYSTAL_VARIANTS=(1 1) # index 0 based (last folder index+1) #----------------------------------------------------8
-MAX_BONUS_VARIANTS=(100000 100000)  # index 0 based (last json index+1)#--------------------------------------------------9
-EQUIP_SLOT=5 # Armor=0, Weapon=1, Shield=2, Helmet=3, Necklace=4, Bracelet=5, Shoes=6, Earrings=7, Boost=8 --------------------10
+NFT_COUNT=(0 0 0) #limited by NFT_MAX
+MAX_SOCKET=(0 0 0) #----------------------------------------------------------------------------------------------------7
+MAX_CRYSTAL_VARIANTS=(0 0 0) # index 0 based (last folder index+1) #----------------------------------------------------8
+MAX_BONUS_VARIANTS=(0 0 0)  # index 0 based (last json index+1)#--------------------------------------------------9
+EQUIP_SLOT=8 # Armor=0, Weapon=1, Shield=2, Helmet=3, Necklace=4, Bracelet=5, Shoes=6, Earrings=7, Boost=8 --------------------10
 
 COLLECTION_DATA=""
 for ((i = 0; i < ${#METADATA_CID[@]}; i++))
@@ -120,6 +123,16 @@ do
     METADATA_CID_HEX=$(echo -n ${METADATA_CID[$i]} | xxd -p -u | tr -d '\n')
     IMAGE_CID_HEX=$(echo -n ${IMAGE_CID[$i]} | xxd -p -u | tr -d '\n')
     COLLECTION_DATA="${COLLECTION_DATA}0x${IMAGE_CID_HEX} 0x${METADATA_CID_HEX} ${NFT_COUNT[$i]} ${MAX_SOCKET[$i]} ${MAX_CRYSTAL_VARIANTS[$i]} ${MAX_BONUS_VARIANTS[$i]} "
+done
+
+
+COIN_COUNT=(200 440 1200 2700 5900 13000)
+TCL_PRICE=(320 640 1600 3200 6400 12800)
+
+COIN_PACKS=""
+for ((i = 0; i < ${#COIN_COUNT[@]}; i++))
+do
+    COIN_PACKS="${COIN_PACKS} ${COIN_COUNT[i]} ${TCL_PRICE[i]}000000000000000000 "
 done
 
 
@@ -133,13 +146,33 @@ SET_Collection_INIT() {
     sleep 12
     SET_SPECIAL_ROLE
     echo "Running SET_SPECIAL_ROLE"
-    sleep 12
-    startMinting
-    echo "Running startMinting"
+    #sleep 12
+    #startMinting
+    #echo "Running startMinting"
 }
 
 
 
+distributeTokenPurchases() {
+    mxpy --verbose contract call ${SC_ADDRESS} \
+    --send --proxy=${PROXY} --chain=${CHAIN_ID} \
+    --recall-nonce --pem=${USER_PEM} \
+    --gas-limit=60000000 \
+    --function="distributeTokenPurchases" \
+    --arguments "ACESTA FUNCTIE E TOMPORARA SI TREBUIE SCOASA"
+}
+
+
+
+
+setCoinPacks() {
+    mxpy --verbose contract call ${SC_ADDRESS} \
+    --send --proxy=${PROXY} --chain=${CHAIN_ID} \
+    --recall-nonce --pem=${USER_PEM} \
+    --gas-limit=60000000 \
+    --function="setCoinPacks" \
+    --arguments ${COIN_PACKS}
+}
 
 SET_Collection() {
     mxpy --verbose contract call ${SC_ADDRESS} \
@@ -151,11 +184,11 @@ SET_Collection() {
 }
 
 SET_SFT() {
-    collection_id=str:TCLMOUNT-2428de
-    sft_nonce=4
-    sft_price=2500000000000000000000
-    sft_sold=0
-    sft_max=400
+    collection_id=str:TCLBOOST-88ee35
+    sft_nonce=3
+    sft_price=5000000000000000000000
+    sft_sold=58 #24
+    sft_max=250 #78
     mxpy --verbose contract call ${SC_ADDRESS} \
     --send --proxy=${PROXY} --chain=${CHAIN_ID} \
     --recall-nonce --pem=${USER_PEM} \
@@ -200,7 +233,8 @@ CHANGE_CRYSTAL_PRICE=300000000000000000000
 NFT_UPGRADE_CHANCE=0
 ADD_REFINEMENT_PRICE=150000000000000000000
 TCL_PRICE=5000000000000000
-APR_MAX=500
+APR_MAX=400
+MIN_AMOUNT_TO_BORROW=2000000000000000000000
 
 SET_global_props() {
     mxpy --verbose contract call ${SC_ADDRESS} \
@@ -208,7 +242,27 @@ SET_global_props() {
     --recall-nonce --pem=${USER_PEM} \
     --gas-limit=60000000 \
     --function="setGlobalProps" \
-    --arguments ${TOKEN_ID_HEX} ${NFT_UPGRADE_PRICE} ${ADD_BONUS_PRICE} ${CHANGE_BONUS_PRICE} ${ADD_SOCKET_PRICE} ${ADD_CRYSTAL_PRICE} $CHANGE_CRYSTAL_PRICE ${NFT_UPGRADE_CHANCE} ${ADD_REFINEMENT_PRICE} $TCL_PRICE $TEAM_WALLET $SERVER_WALLET $APR_MAX
+    --arguments ${TOKEN_ID_HEX} ${NFT_UPGRADE_PRICE} ${ADD_BONUS_PRICE} ${CHANGE_BONUS_PRICE} ${ADD_SOCKET_PRICE} ${ADD_CRYSTAL_PRICE} $CHANGE_CRYSTAL_PRICE ${NFT_UPGRADE_CHANCE} ${ADD_REFINEMENT_PRICE} $TCL_PRICE $TEAM_WALLET $SERVER_WALLET $APR_MAX $MIN_AMOUNT_TO_BORROW
+}
+
+getCoinPacks() {
+    mxpy --verbose contract query ${SC_ADDRESS} \
+    --proxy=${PROXY} \
+    --function="getCoinPacks"
+}
+
+getReferralData() {
+    mxpy --verbose contract query ${SC_ADDRESS} \
+    --proxy=${PROXY} \
+    --function="getReferralData" \
+     --arguments $USER_ADDRESS
+}
+
+getRewardsData() {
+    mxpy --verbose contract query ${SC_ADDRESS} \
+    --proxy=${PROXY} \
+    --function="getRewardsData" \
+     --arguments $USER_ADDRESS
 }
 
 getUserBorrowedAmount() {
@@ -708,6 +762,29 @@ SET_REFERRAL_OWNER() {
 #     sleep 3
 # done
 
+BUY_COINS() {
+    method_name=str:buyCoins
+    payment_token_id=str:$TOKEN_ID
+    payment_amount=320000000000000000000 #1000000000000000000 = 1TCL
+    coins_amount=200
+
+    mxpy --verbose contract call ${SC_ADDRESS} \
+        --recall-nonce \
+        --pem=${USER_PEM} \
+        --gas-limit=60000000 \
+        --proxy=${PROXY} \
+        --chain=${CHAIN_ID} \
+        --function="ESDTTransfer" \
+        --arguments \
+            $payment_token_id \
+            $payment_amount \
+            $method_name \
+            $coins_amount \
+        --send || return
+}
+
+
+
 ADD_TCL() {
     receiver=$SC_ADDRESS
     tokens_send_count=1
@@ -737,6 +814,41 @@ ADD_TCL() {
             $collection_id \
             $nft_nonce \
         --send || return
+}
+
+ADD_BOOST_STAKING() {
+    receiver=$SC_ADDRESS
+    tokens_send_count=1
+    method_name=str:addBoostStaking
+    payment_token_id=str:$TOKEN_ID
+    payment_token_nonce=0
+    payment_amount=150000000000000000000000 #1000000000000000000 = 1TCL
+  
+    mxpy --verbose contract call ${SERVER_WALLET} \
+        --recall-nonce \
+        --pem=${USER_PEM} \
+        --gas-limit=60000000 \
+        --proxy=${PROXY} \
+        --chain=${CHAIN_ID} \
+        --function="MultiESDTNFTTransfer" \
+        --arguments \
+            $receiver \
+            $tokens_send_count \
+            $payment_token_id \
+            $payment_token_nonce \
+            $payment_amount \
+            $method_name \
+            $USER_ADDRESS\
+        --send || return
+}
+
+REMOVE_BOOST_STAKING() {
+    mxpy --verbose contract call ${SC_ADDRESS} \
+    --send --proxy=${PROXY} --chain=${CHAIN_ID} \
+    --recall-nonce --pem=${USER_PEM} \
+    --gas-limit=60000000 \
+    --function="removeBoostStaking" \
+    --arguments ${USER_ADDRESS}
 }
 
 

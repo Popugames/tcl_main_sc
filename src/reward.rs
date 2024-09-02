@@ -8,6 +8,8 @@ use crate::utils;
 
 pub trait RewardModule: storage::Storage + utils::Utils{
 
+    
+
     #[payable("*")]
     #[endpoint(addReserve)]
     fn add_reserve(&self) {
@@ -82,7 +84,7 @@ pub trait RewardModule: storage::Storage + utils::Utils{
         );
 
         //Calculate rewards
-        let user_reward = self.calculate_reward(&wallet_address, user_staked_amount);
+        let user_reward = self.calculate_reward(&wallet_address, user_staked_amount, true);
 
 
         //GLOBAL
@@ -130,8 +132,8 @@ pub trait RewardModule: storage::Storage + utils::Utils{
         );
         
         //Calculate rewards and boost rewards
-        let user_reward = self.calculate_reward(&wallet_address, user_loaned_amount);
-
+        let user_reward = self.calculate_reward(&wallet_address, user_loaned_amount, false);
+        let min_amount_to_borrow = self.min_amount_to_borrow().get();
 
         // Actualizează recompensele totale eliberate
         self.total_rewards_released().update(|v| *v += &user_reward);
@@ -141,10 +143,24 @@ pub trait RewardModule: storage::Storage + utils::Utils{
     
         //Setam epoca curenta pentru fiecare NFT dat imprumut
         for (collection_id, nonce) in self.loaned_nfts(&caller).iter() {
-            self.last_nft_claimed_epoch(&collection_id, &nonce).set(&current_epoch);
 
-            // Adaugă NFT-ul în lista disponibilă pentru urmatoarea epoca
-            self.available_borrow_nfts(&next_epoch).insert((collection_id.clone(), nonce.clone()));
+            self.last_nft_claimed_epoch(&collection_id, &nonce).set(&current_epoch);
+            let tcl_count = self.tcl_count(&collection_id, &nonce).get();
+
+            if &tcl_count > &min_amount_to_borrow
+            {
+                // Adaugă NFT-ul în lista disponibilă pentru urmatoarea epoca
+                self.available_borrow_nfts(&next_epoch).insert((collection_id.clone(), nonce.clone()));
+
+                //Adaugă NFT-ul în lista disponibilă pentru epoca curenta daca nu exista sau nu a fost imprumutat
+                let is_borrowed = self.borrowed_nfts(&current_epoch).contains(&(collection_id.clone(), nonce.clone()));
+                let is_available = self.available_borrow_nfts(&current_epoch).contains(&(collection_id.clone(), nonce.clone()));
+                let last_borrowed_nft_claimed_epoch = self.last_borrowed_nft_claimed_epoch(&collection_id, &nonce).get();
+
+                if &last_borrowed_nft_claimed_epoch < &current_epoch && !is_available && !is_borrowed{
+                self.available_borrow_nfts(&current_epoch).insert((collection_id.clone(), nonce.clone()));
+                }
+            }
         }
     
         // Trimite recompensa către portofelul utilizatorului
@@ -163,6 +179,7 @@ pub trait RewardModule: storage::Storage + utils::Utils{
         let user_borrowed_amount = self.user_borrowed_amount(&wallet_address, &current_epoch).get();
         let is_borrowed = !self.user_borrowed_amount(&wallet_address, &current_epoch).is_empty();
         let user_borrowed_amount = self.user_borrowed_amount(&wallet_address, &current_epoch).get();
+        let (collection_id, nonce) = self.borrowed_nft(&wallet_address,&current_epoch).get();
 
 
         require!(
@@ -178,7 +195,7 @@ pub trait RewardModule: storage::Storage + utils::Utils{
             "apr_max not set"
         );
 
-        let user_reward = self.calculate_reward(&wallet_address, user_borrowed_amount);
+        let user_reward = self.calculate_reward(&wallet_address, user_borrowed_amount, false);
 
         //GLOBAL
         self.total_rewards_released().update(|v| *v += &user_reward);
@@ -186,6 +203,7 @@ pub trait RewardModule: storage::Storage + utils::Utils{
         self.last_borrowed_claimed_epoch(&wallet_address).set(&current_epoch);
         self.borrowed_nft(&wallet_address, &current_epoch).clear();
         self.user_borrowed_amount(&wallet_address, &current_epoch).clear();
+        self.last_borrowed_nft_claimed_epoch(&collection_id, &nonce).set(&current_epoch);
        
         //SEND TOKENS
         self.send().direct(

@@ -182,13 +182,13 @@ pub trait Storage {
     #[storage_mapper("referral_owner")]
     fn referral_owner(&self, referral_code: &ManagedBuffer) -> SingleValueMapper<ManagedAddress>;
 
-    #[view(getReferralEarned)]
-    #[storage_mapper("referral_earned")]
-    fn referral_earned(&self, referral_code: &ManagedBuffer) -> SingleValueMapper<BigUint>;
-
     #[view(getReferralCode)]
     #[storage_mapper("referral_code")]
     fn referral_code(&self, wallet_address: &ManagedAddress) -> SingleValueMapper<ManagedBuffer>;
+
+    #[view(getReferralEarned)]
+    #[storage_mapper("referral_earned")]
+    fn referral_earned(&self, referral_code: &ManagedBuffer) -> SingleValueMapper<BigUint>;
 
     #[view(getReferralCodeInvitee)]
     #[storage_mapper("referral_code_invitee")]
@@ -260,6 +260,10 @@ pub trait Storage {
     #[storage_mapper("user_staked_amount")]
     fn user_staked_amount(&self, wallet_address: &ManagedAddress) -> SingleValueMapper<BigUint>;
 
+    #[view(getUserBoostStakedAmount)]
+    #[storage_mapper("user_boost_staked_amount")]
+    fn user_boost_staked_amount(&self, wallet_address: &ManagedAddress) -> SingleValueMapper<BigUint>;
+
     #[view(getUserLoanedAmount)]
     #[storage_mapper("user_loaned_amount")]
     fn user_loaned_amount(&self, wallet_address: &ManagedAddress) -> SingleValueMapper<BigUint>;
@@ -277,12 +281,17 @@ pub trait Storage {
 
     #[storage_mapper("available_borrow_nfts")]
     fn available_borrow_nfts(&self,epoch: &u64) -> UnorderedSetMapper<(TokenIdentifier, u64)>;
+    #[storage_mapper("borrowed_nfts")]
+    fn borrowed_nfts(&self,epoch: &u64) -> UnorderedSetMapper<(TokenIdentifier, u64)>;
 
     #[storage_mapper("loaned_nfts")]
     fn loaned_nfts(&self,wallet_address: &ManagedAddress) -> UnorderedSetMapper<(TokenIdentifier, u64)>;
 
     #[storage_mapper("last_nft_claimed_epoch")]
     fn last_nft_claimed_epoch(&self,collection_id: &TokenIdentifier, nonce: &u64) -> SingleValueMapper<u64>;
+
+    #[storage_mapper("last_borrowed_nft_claimed_epoch")]
+    fn last_borrowed_nft_claimed_epoch(&self,collection_id: &TokenIdentifier, nonce: &u64) -> SingleValueMapper<u64>;
 
     #[storage_mapper("last_borrowed_claimed_epoch")]
     fn last_borrowed_claimed_epoch(&self,wallet_address: &ManagedAddress) -> SingleValueMapper<u64>;
@@ -294,6 +303,23 @@ pub trait Storage {
     #[storage_mapper("borrowed_nft")]
     fn borrowed_nft(&self,wallet_address: &ManagedAddress, epoch: &u64) -> SingleValueMapper<(TokenIdentifier, u64)>;
 
+    #[storage_mapper("min_amount_to_borrow")]
+    fn min_amount_to_borrow(&self) -> SingleValueMapper<BigUint>;
 //
 
-}
+//ITEM SHOP
+#[storage_mapper("coin_packs")]
+fn coin_packs(&self) -> SetMapper<(u32, BigUint)>; //(coins_count, tcl_price)
+
+#[storage_mapper("user_purchase_history")]
+fn user_purchase_history(&self, wallet_address: &ManagedAddress) -> SetMapper<(u64, u32)>; //(timestamp, coins_count)
+
+#[storage_mapper("total_packs_purchased")]
+fn total_packs_purchased(&self) -> SingleValueMapper<u64>;
+
+#[storage_mapper("total_tcl_paid_for_packs")]
+fn total_tcl_paid_for_packs(&self) -> SingleValueMapper<BigUint>;
+
+//
+
+} 

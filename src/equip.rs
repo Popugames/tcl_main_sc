@@ -23,8 +23,11 @@ pub trait EquipModule: nft::NftModule + referral::ReferralModule + reward::Rewar
         let caller = self.blockchain().get_caller();
         let current_epoch = self.blockchain().get_block_epoch();
         let not_borrowed = self.user_borrowed_amount(&caller, &current_epoch).is_empty();
+        let last_borrowed_claimed_epoch = self.last_borrowed_claimed_epoch(&caller).get();
+
 
         require!(not_borrowed, "can t equip when borrowed");
+        require!(last_borrowed_claimed_epoch < current_epoch , "can t equip when borrowed");
         
         // Obține toate transferurile ESDT efectuate în timpul acestui apel
         let transfers = self.call_value().all_esdt_transfers();
@@ -143,25 +146,35 @@ pub trait EquipModule: nft::NftModule + referral::ReferralModule + reward::Rewar
             ManagedBuffer::from("0")
         };
     
-        //equipped_nfts_str.append(&is_borrowed);
-        //equipped_nfts_str.append(&ManagedBuffer::new_from_bytes(b","));
-
         //EQUIPPED
         for slot_index in 0..9 {
             let equip_slot = EquipSlot::from_i32(slot_index).unwrap();
             match self.equipped_nfts(&wallet_address).get(&equip_slot) {
                 Some((collection_id, nonce)) => {
                     let tcl_count = self.tcl_count(&collection_id, &nonce).get();
+                    
     
                     //Construim bufferul pentru NFT echipat
-                    equipped_nfts_str.append(&collection_id.into_managed_buffer());
+                    equipped_nfts_str.append(&collection_id.clone().into_managed_buffer());
                     equipped_nfts_str.append(&ManagedBuffer::new_from_bytes(b" "));
                     equipped_nfts_str.append(&self.decimal_to_ascii((nonce as u32).try_into().unwrap()));
                     equipped_nfts_str.append(&ManagedBuffer::new_from_bytes(b" "));
                     equipped_nfts_str.append(&self.biguint_to_ascii(&tcl_count));
                     equipped_nfts_str.append(&ManagedBuffer::new_from_bytes(b" "));
                     equipped_nfts_str.append(&is_borrowed_buffer);
-                    equipped_nfts_str.append(&ManagedBuffer::new_from_bytes(b","));
+
+                    let equip_slot = self.equip_slot(&collection_id).get();
+                    if equip_slot != EquipSlot::Boost{
+                        equipped_nfts_str.append(&ManagedBuffer::new_from_bytes(b" "));
+                        let attributes_route = self.build_attributes_route(&collection_id, &nonce);
+                        equipped_nfts_str.append(&attributes_route);
+                        equipped_nfts_str.append(&ManagedBuffer::new_from_bytes(b","));
+                    }
+                    else{
+                        equipped_nfts_str.append(&ManagedBuffer::new_from_bytes(b","));
+                    }
+
+                    
                 },
                 None => {}
             }
@@ -172,6 +185,7 @@ pub trait EquipModule: nft::NftModule + referral::ReferralModule + reward::Rewar
         {
             let (collection_id, nonce) = self.borrowed_nft(&wallet_address, &current_epoch).get();
             let tcl_count = self.tcl_count(&collection_id, &nonce).get();
+            let attributes_route = self.build_attributes_route(&collection_id, &nonce);
 
             equipped_nfts_str.append(&collection_id.into_managed_buffer());
             equipped_nfts_str.append(&ManagedBuffer::new_from_bytes(b" "));
@@ -180,6 +194,8 @@ pub trait EquipModule: nft::NftModule + referral::ReferralModule + reward::Rewar
             equipped_nfts_str.append(&self.biguint_to_ascii(&tcl_count));
             equipped_nfts_str.append(&ManagedBuffer::new_from_bytes(b" "));
             equipped_nfts_str.append(&is_borrowed_buffer);
+            equipped_nfts_str.append(&ManagedBuffer::new_from_bytes(b" "));
+            equipped_nfts_str.append(&attributes_route);
             equipped_nfts_str.append(&ManagedBuffer::new_from_bytes(b","));
 
         }

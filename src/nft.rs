@@ -31,7 +31,8 @@ pub trait NftModule: referral::ReferralModule + reward::RewardModule + storage::
         tcl_usd_price: BigUint,
         team_wallet: ManagedAddress,
         server_wallet: ManagedAddress,
-        apr_max: u16
+        apr_max: u16,
+        min_amount_to_borrow: BigUint 
     ) {
         self.payment_token_id().set(payment_token_id);
         self.nft_upgrade_price().set(nft_upgrade_price);
@@ -46,6 +47,7 @@ pub trait NftModule: referral::ReferralModule + reward::RewardModule + storage::
         self.team_wallet().set(team_wallet);
         self.server_wallet().set(server_wallet);
         self.apr_max().set(apr_max);
+        self.min_amount_to_borrow().set(min_amount_to_borrow);
     }
 
 
@@ -112,6 +114,46 @@ pub trait NftModule: referral::ReferralModule + reward::RewardModule + storage::
     fn start_minting(&self,collection_id:TokenIdentifier){
         self.paused(&collection_id).set(false);
     }
+
+    #[only_owner]
+    #[payable("*")]
+    #[endpoint(addBoostStaking)]
+    fn add_boost_staked(&self, wallet_address: ManagedAddress){
+
+        let (payment_token, payment_amount) = self.call_value().egld_or_single_fungible_esdt();
+        let payment_token_id = self.payment_token_id().get();
+
+        require!(
+            payment_token == payment_token_id, 
+            "invalid token paid"
+        );
+
+        self.user_boost_staked_amount(&wallet_address).update(|v| *v += payment_amount);
+    }
+
+    #[only_owner]
+    #[endpoint(removeBoostStaking)]
+    fn remove_boost_staked(&self, wallet_address: ManagedAddress){
+
+        let caller = self.blockchain().get_caller();
+        let user_boost_staked_amount = self.user_boost_staked_amount(&wallet_address).get();
+        let payment_token_id = self.payment_token_id().get();
+
+        require!(
+            &user_boost_staked_amount > &BigUint::zero(), 
+            "0 tokens in boost"
+        );
+
+        self.user_boost_staked_amount(&wallet_address).set(BigUint::zero());
+
+        self.send().direct(
+            &caller,
+            &payment_token_id,
+            0u64,
+            &user_boost_staked_amount
+        );
+    }
+
 //END
 
 //PUBLIC FUNCTIONS
@@ -269,10 +311,11 @@ pub trait NftModule: referral::ReferralModule + reward::RewardModule + storage::
         let caller = self.blockchain().get_caller();
         let is_equipped = self.is_equipped(&caller, &collection_id, &nonce);
         let is_loaned = self.loaned_nfts(&caller).contains(&(collection_id.clone(), nonce.clone()));
-        let is_available = self.is_available(&caller, &collection_id, &nonce);
+        let current_epoch = self.blockchain().get_block_epoch();
+        let is_borrowed = self.borrowed_nfts(&current_epoch).contains(&(collection_id.clone(), nonce.clone()));
 
         //is_equipped requirement trebuie eliminat dupa ce se rezolva problema cu metadata inter-shard(API)
-        require!(is_equipped || is_available, "nft must be equipped or not borrowed");
+        require!(is_equipped || is_loaned && !is_borrowed, "nft must be equipped or not borrowed");
     
         // Verificări inițiale pentru a asigura că ID-ul tokenului de plată și prețul de upgrade sunt setate
         require!(!self.payment_token_id().is_empty(), "Payment token ID not set");
@@ -373,10 +416,11 @@ pub trait NftModule: referral::ReferralModule + reward::RewardModule + storage::
         let caller = self.blockchain().get_caller();
         let is_equipped = self.is_equipped(&caller, &collection_id, &nonce);
         let is_loaned = self.loaned_nfts(&caller).contains(&(collection_id.clone(), nonce.clone()));
-        let is_available = self.is_available(&caller, &collection_id, &nonce);
+        let current_epoch = self.blockchain().get_block_epoch();
+        let is_borrowed = self.borrowed_nfts(&current_epoch).contains(&(collection_id.clone(), nonce.clone()));
 
         //Acest requirement trebuie eliminat dupa ce se rezolva problema cu metadata inter-shard(API)
-        require!(is_equipped || is_available, "nft must be equipped or not borrowed");
+        require!(is_equipped || is_loaned && !is_borrowed, "nft must be equipped or not borrowed");
     
         // Dacă NFT-ul nu este echipat, verificăm și extragem detaliile transferului NFT
         if !is_equipped && !is_loaned {
@@ -465,10 +509,11 @@ pub trait NftModule: referral::ReferralModule + reward::RewardModule + storage::
         let caller = self.blockchain().get_caller();
         let is_equipped = self.is_equipped(&caller, &collection_id, &nonce);
         let is_loaned = self.loaned_nfts(&caller).contains(&(collection_id.clone(), nonce.clone()));
-        let is_available = self.is_available(&caller, &collection_id, &nonce);
+        let current_epoch = self.blockchain().get_block_epoch();
+        let is_borrowed = self.borrowed_nfts(&current_epoch).contains(&(collection_id.clone(), nonce.clone()));
 
         //Acest requirement trebuie eliminat dupa ce se rezolva problema cu metadata inter-shard(API)
-        require!(is_equipped || is_available, "nft must be equipped or not borrowed");
+        require!(is_equipped || is_loaned && !is_borrowed, "nft must be equipped or not borrowed");
     
         // Dacă NFT-ul nu este echipat, verificăm și extragem detaliile transferului NFT
         if !is_equipped && !is_loaned {
@@ -547,10 +592,11 @@ pub trait NftModule: referral::ReferralModule + reward::RewardModule + storage::
         let caller = self.blockchain().get_caller();
         let is_equipped = self.is_equipped(&caller, &collection_id, &nonce);
         let is_loaned = self.loaned_nfts(&caller).contains(&(collection_id.clone(), nonce.clone()));
-        let is_available = self.is_available(&caller, &collection_id, &nonce);
+        let current_epoch = self.blockchain().get_block_epoch();
+        let is_borrowed = self.borrowed_nfts(&current_epoch).contains(&(collection_id.clone(), nonce.clone()));
 
         //Acest requirement trebuie eliminat dupa ce se rezolva problema cu metadata inter-shard(API)
-        require!(is_equipped || is_available, "nft must be equipped or not borrowed");
+        require!(is_equipped || is_loaned && !is_borrowed, "nft must be equipped or not borrowed");
     
         // Dacă NFT-ul nu este echipat, verificăm și extragem detaliile transferului NFT
         if !is_equipped && !is_loaned {
@@ -636,10 +682,11 @@ pub trait NftModule: referral::ReferralModule + reward::RewardModule + storage::
         let caller = self.blockchain().get_caller();
         let is_equipped = self.is_equipped(&caller, &collection_id, &nonce);
         let is_loaned = self.loaned_nfts(&caller).contains(&(collection_id.clone(), nonce.clone()));
-        let is_available = self.is_available(&caller, &collection_id, &nonce);
+        let current_epoch = self.blockchain().get_block_epoch();
+        let is_borrowed = self.borrowed_nfts(&current_epoch).contains(&(collection_id.clone(), nonce.clone()));
 
         //Acest requirement trebuie eliminat dupa ce se rezolva problema cu metadata inter-shard(API)
-        require!(is_equipped || is_available, "nft must be equipped or not borrowed");
+        require!(is_equipped || is_loaned && !is_borrowed, "nft must be equipped or not borrowed");
     
         // Dacă NFT-ul nu este echipat, verificăm și extragem detaliile transferului NFT
         if !is_equipped && !is_loaned {
@@ -716,10 +763,11 @@ pub trait NftModule: referral::ReferralModule + reward::RewardModule + storage::
         let caller = self.blockchain().get_caller();
         let is_equipped = self.is_equipped(&caller, &collection_id, &nonce);
         let is_loaned = self.loaned_nfts(&caller).contains(&(collection_id.clone(), nonce.clone()));
-        let is_available = self.is_available(&caller, &collection_id, &nonce);
+        let current_epoch = self.blockchain().get_block_epoch();
+        let is_borrowed = self.borrowed_nfts(&current_epoch).contains(&(collection_id.clone(), nonce.clone()));
 
         //Acest requirement trebuie eliminat dupa ce se rezolva problema cu metadata inter-shard(API)
-        require!(is_equipped || is_available, "nft must be equipped or not borrowed");
+        require!(is_equipped || is_loaned && !is_borrowed, "nft must be equipped or not borrowed");
     
         // Dacă NFT-ul nu este echipat, verificăm și extragem detaliile transferului NFT
         if !is_equipped && !is_loaned {
@@ -792,10 +840,11 @@ pub trait NftModule: referral::ReferralModule + reward::RewardModule + storage::
         let caller = self.blockchain().get_caller();
         let is_equipped = self.is_equipped(&caller, &collection_id, &nonce);
         let is_loaned = self.loaned_nfts(&caller).contains(&(collection_id.clone(), nonce.clone()));
-        let is_available = self.is_available(&caller, &collection_id, &nonce);
+        let current_epoch = self.blockchain().get_block_epoch();
+        let is_borrowed = self.borrowed_nfts(&current_epoch).contains(&(collection_id.clone(), nonce.clone()));
 
         //Acest requirement trebuie eliminat dupa ce se rezolva problema cu metadata inter-shard(API)
-        require!(is_equipped || is_available, "nft must be equipped or not borrowed");
+        require!(is_equipped || is_loaned && !is_borrowed, "nft must be equipped or not borrowed");
     
         // Dacă NFT-ul nu este echipat, verificăm și extragem detaliile transferului NFT
         if !is_equipped && !is_loaned {

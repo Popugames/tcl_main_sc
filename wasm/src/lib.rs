@@ -5,9 +5,9 @@
 ////////////////////////////////////////////////////
 
 // Init:                                 1
-// Endpoints:                          105
+// Endpoints:                          114
 // Async Callback (empty):               1
-// Total number of exported functions: 107
+// Total number of exported functions: 116
 
 #![no_std]
 #![allow(internal_features)]
@@ -36,6 +36,8 @@ multiversx_sc_wasm_adapter::endpoints! {
         setNewPrice => set_new_price
         pauseMinting => pause_minting
         startMinting => start_minting
+        addBoostStaking => add_boost_staked
+        removeBoostStaking => remove_boost_staked
         getRoles => get_roles
         buySft => buy_sft
         mintNft => mint_nft
@@ -85,8 +87,8 @@ multiversx_sc_wasm_adapter::endpoints! {
         getUpgradeBonusBhance => upgrade_bonus_chance
         getTclUsdPrice => tcl_usd_price
         getReferralOwner => referral_owner
-        getReferralEarned => referral_earned
         getReferralCode => referral_code
+        getReferralEarned => referral_earned
         getReferralCodeInvitee => referral_code_invitee
         getReferralInvitees => referral_invitees
         getTransactionsInvitees => transactions_invitees
@@ -103,6 +105,7 @@ multiversx_sc_wasm_adapter::endpoints! {
         getTotalStakedAmount => total_staked_amount
         getServerWallet => server_wallet
         getUserStakedAmount => user_staked_amount
+        getUserBoostStakedAmount => user_boost_staked_amount
         getUserLoanedAmount => user_loaned_amount
         getLastClaimedLendingEpoch => last_claimed_lending_epoch
         getUserBorrowedAmount => user_borrowed_amount
@@ -111,6 +114,7 @@ multiversx_sc_wasm_adapter::endpoints! {
         calculateReward => calculate_reward
         buildUrisVec => build_uris_vec
         getAttributesBuffer => build_attributes_buffer
+        getAttributesRoute => build_attributes_route
         getCurrentWave => get_current_wave
         getNewNftQuality => get_new_nft_quality
         getUpgradeChance => get_upgrade_chance
@@ -122,9 +126,14 @@ multiversx_sc_wasm_adapter::endpoints! {
         getLendingData => get_lending_data
         getLastClaimedEpoch => get_last_claimed_epoch
         getRewardsData => rewards_data
+        getHistoryPurchases => history_purchases
+        getReferralData => referral_data
         loanNft => loan_nft
         unloanNft => unloan_nft
         borrowNft => borrow_nft
+        setCoinPacks => set_coin_packs
+        buyCoins => buy_coins
+        getCoinPacks => get_coin_packs
     )
 }
 

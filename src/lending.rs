@@ -50,6 +50,7 @@ pub trait LendingModule:  nft::NftModule + referral::ReferralModule + reward::Re
         let tcl_max = self.tcl_max(&collection_id, &nft_nonce).get();
         let storage = self.calculate_storage(tcl_max);
         let slot = self.equip_slot(&collection_id).get();
+        let min_amount_to_borrow = self.min_amount_to_borrow().get();
         
         require!(self.is_collection_set(&collection_id), "Collection not set");
         require!(slot != EquipSlot::Boost, "boost items can t be loaned");
@@ -60,8 +61,13 @@ pub trait LendingModule:  nft::NftModule + referral::ReferralModule + reward::Re
         self.tcl_count(&collection_id, &nft_nonce).update(|v| *v += &payment_amount);
         self.stake_loaned(&caller, &payment_amount);
 
-        // Adaugă NFT-ul în lista disponibilă și în cea de împrumut
-        self.available_borrow_nfts(&current_epoch).insert((collection_id.clone(), nft_nonce.clone()));
+
+        if &payment_amount > &min_amount_to_borrow
+        {
+            // Adaugă NFT-ul în lista disponibilă și în cea de împrumut
+            self.available_borrow_nfts(&current_epoch).insert((collection_id.clone(), nft_nonce.clone()));
+        }
+        
         self.loaned_nfts(&caller).insert((collection_id.clone(), nft_nonce.clone()));
 
         // Setează ultima epocă pentru claim pentru a preveni retrageri premature
@@ -132,7 +138,9 @@ pub trait LendingModule:  nft::NftModule + referral::ReferralModule + reward::Re
         self.borrowed_nft(&wallet_address, &current_epoch).set(&(collection_id.clone(), nonce.clone()));
 
         //Remove NFT from available list
-        self.available_borrow_nfts(&current_epoch).swap_remove(&(collection_id, nonce));
+        self.available_borrow_nfts(&current_epoch).swap_remove(&(collection_id.clone(), nonce));
+        // Adaugă NFT-ul în lista de imprumutate
+        self.borrowed_nfts(&current_epoch).insert((collection_id, nonce.clone()));
     }
 
 }
