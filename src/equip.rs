@@ -98,7 +98,14 @@ pub trait EquipModule: nft::NftModule + referral::ReferralModule + reward::Rewar
             self.equipped_nfts(&caller).contains_key(&nft_slot),
             "No NFT equipped on this slot"
         );
-        
+
+        if &nft_slot == &EquipSlot::Boost { 
+            require!(
+                self.last_claimed_infinity_epoch(&caller).get() < current_epoch,
+               "Cannot unequip if claimed infinity in the same epoch"
+           );
+        }
+
         // Obținem detaliile NFT-ului echipat
         match self.equipped_nfts(&caller).get(&nft_slot) {
             Some((collection_id, nonce)) => {

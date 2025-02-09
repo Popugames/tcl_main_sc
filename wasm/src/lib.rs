@@ -5,9 +5,9 @@
 ////////////////////////////////////////////////////
 
 // Init:                                 1
-// Endpoints:                          114
+// Endpoints:                          137
 // Async Callback (empty):               1
-// Total number of exported functions: 116
+// Total number of exported functions: 139
 
 #![no_std]
 #![allow(internal_features)]
@@ -21,10 +21,15 @@ multiversx_sc_wasm_adapter::endpoints! {
     (
         init => init
         upgrade => upgrade
+        addInfinityStaking => add_infinity_staking
         addReserve => add_reserve
         claimRewards => claim_rewards
         claimLendingRewards => claim_lending_rewards
         claimBorrowingRewards => claim_borrowing_rewards
+        claimInfinityRewards => claim_infinity_rewards
+        setReinvestInfinity => set_reinvest_infinity
+        addDaysAutoClaim => add_days_auto_claim
+        resetIndex => resetIndex
         equipNft => equip_nft
         unequipNft => unequip_nft
         getEquippedNfts => get_equipped_nfts
@@ -108,10 +113,25 @@ multiversx_sc_wasm_adapter::endpoints! {
         getUserBoostStakedAmount => user_boost_staked_amount
         getUserLoanedAmount => user_loaned_amount
         getLastClaimedLendingEpoch => last_claimed_lending_epoch
+        getUserInfinityStakedAmount => user_infinity_staked_amount
+        lastClaimedInfinityEpoch => last_claimed_infinity_epoch
+        totalUserInfinityRewards => total_user_infinity_rewards
+        getTotalInfinityStakedAmount => total_infinity_staked_amount
         getUserBorrowedAmount => user_borrowed_amount
+        getUserBalancePrivateShop => user_balance_private_shop
+        getPrivateShopBalanceTimestamp => private_shop_balance_timestamp
+        getAutoClaimSubscribers => auto_claim_subscribers
+        getSubscriberIndex => subscriber_index
+        getReinvestInfinity => reinvest_infinity
+        getPriceEgldAutoclaim => price_egld_autoclaim
+        getEndSubscriptionEpoch => end_subscription_epoch
+        getBatchAutoClaim => batch_auto_claim
+        getAutoClaimedCount => auto_claimed_count
         calculateStorage => calculate_storage
         calculateAdditionalStorage => calculate_additional_storage
         calculateReward => calculate_reward
+        getApr => get_apr
+        getBoost => get_boost
         buildUrisVec => build_uris_vec
         getAttributesBuffer => build_attributes_buffer
         getAttributesRoute => build_attributes_route
@@ -134,6 +154,9 @@ multiversx_sc_wasm_adapter::endpoints! {
         setCoinPacks => set_coin_packs
         buyCoins => buy_coins
         getCoinPacks => get_coin_packs
+        addBalancePrivateShop => add_balance_private_shop
+        refundPrivateShop => refund_private_shop
+        withdrawBalancePrivateShop => withdraw_balance_private_shop
     )
 }
 

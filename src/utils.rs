@@ -104,6 +104,54 @@ pub trait Utils: storage::Storage {
         total_rewards
     }
 
+    #[endpoint(getApr)]
+    fn get_apr(&self) -> BigUint {
+        let total_reserve = self.total_reserve_amount().get();
+        let total_staked_amount = self.total_staked_amount().get();
+        let apr_max = BigUint::from(self.apr_max().get());
+    
+        // Verificare pentru evitarea împărțirii la zero
+        if total_staked_amount == BigUint::zero() {
+            return BigUint::zero() // Valoare default
+        }
+    
+        // Calculul global_daily_reward
+        let global_daily_reward = (total_reserve / BigUint::from(100u64)) / BigUint::from(30u64);
+    
+        // Calculul current_apr
+        let current_apr = (global_daily_reward * BigUint::from(365u64) * BigUint::from(100u64)) / total_staked_amount;
+    
+        // Comparare cu apr_max și conversie în u16
+        if current_apr > apr_max {
+            BigUint::from(apr_max)
+        } else {
+            current_apr
+        }
+    }
+
+    #[endpoint(getBoost)]
+    fn get_boost(&self, wallet_address: &ManagedAddress) -> BigUint {
+
+        if self.equipped_nfts(&wallet_address).contains_key(&EquipSlot::Boost)
+        {
+            let (collection_id, nonce) = self.equipped_nfts(&wallet_address).get(&EquipSlot::Boost).unwrap();
+            if nonce == 1
+            {
+                return  BigUint::from(10u64)
+            }else if nonce == 2
+            {
+                return BigUint::from(7u64)
+            }else
+            {
+                return BigUint::from(5u64)
+            }
+        }
+        else
+        {
+            return BigUint::zero();
+        };
+    }
+
     #[view(buildUrisVec)]
     fn build_uris_vec(&self, collection_id: &TokenIdentifier, current_wave: usize) -> ManagedVec<ManagedBuffer>{
 
@@ -277,7 +325,6 @@ pub trait Utils: storage::Storage {
         final_buffer
     }
 
-
     fn update_attributes(&self, collection_id: &TokenIdentifier, nonce: u64, nft_quality: u32) {
         let nft_wave = self.nft_wave(&collection_id, &nonce).get();
         let metadata_cid = self.metadata_cid(&collection_id).get(nft_wave as usize);
@@ -295,7 +342,6 @@ pub trait Utils: storage::Storage {
         );
     }
 
-    
     #[view(getCurrentWave)]
     fn get_current_wave(&self, collection_id: &TokenIdentifier) -> usize {
         // Retrieve the total number of NFTs already minted
@@ -419,6 +465,82 @@ pub trait Utils: storage::Storage {
             &cashback_amount
         );
     }
+
+    fn distribute_shop_fees(&self, buyer_address: ManagedAddress, amount: BigUint) {
+
+        let payment_token_id = self.payment_token_id().get();
+
+        let referral_code = if self.referral_code_invitee(&buyer_address).is_empty() {
+            ManagedBuffer::new_from_bytes(DEFAULT_REFERRAL)
+        } else {
+            self.referral_code_invitee(&buyer_address).get()
+        };
+
+        let cashback_wallet = if self.referral_code_invitee(&buyer_address).is_empty() {
+            self.team_wallet().get()
+        } else {
+            buyer_address.clone()
+        };
+
+        require!(
+            !self.referral_owner(&referral_code).is_empty(),
+            "referral not set"
+        );
+
+        let referral_owner = if self.referral_invitees(&referral_code).get() >= 5u32 {
+            self.referral_owner(&referral_code).get()
+        } else {
+            self.referral_owner(&ManagedBuffer::new_from_bytes(DEFAULT_REFERRAL)).get()
+        };
+        
+        let burn_amount = amount.clone() * BigUint::from(40u8) / BigUint::from(100u8); // 40%
+        let server_amount = amount.clone() * BigUint::from(20u8) / BigUint::from(100u8); // 20%
+        let referral_amount = amount.clone() * BigUint::from(20u8) / BigUint::from(100u8); // 20%
+        let cashback_amount = amount.clone() * BigUint::from(20u8) / BigUint::from(100u8); // 20%
+
+
+        self.total_earned_all_referrals().update(|v| *v += referral_amount.clone());
+        self.referral_earned(&referral_code).update(|v| *v += referral_amount.clone());
+        self.transactions_invitees(&referral_code).update(|v| *v += 1u64);
+        self.total_transactions_all_invitees().update(|v| *v += 1u64);
+
+        // BURN
+        self.send().esdt_local_burn(
+            &payment_token_id.clone().unwrap_esdt(),
+            0u64,
+            &burn_amount
+        );
+
+         // SERVER
+         self.send().direct(
+            &self.server_wallet().get(),
+            &payment_token_id,
+            0u64,
+            &server_amount
+        );
+    
+        // REFERRAL
+        self.send().direct(
+            &referral_owner,
+            &payment_token_id,
+            0u64,
+            &referral_amount
+        );
+    
+        // CASHBACK
+        self.send().direct(
+            &cashback_wallet,
+            &payment_token_id,
+            0u64,
+            &cashback_amount
+        );
+    }
+
+
+
+
+
+
 
     //generates a random number between $min and $max included
     #[endpoint(getRandomNumber)]
@@ -604,16 +726,19 @@ pub trait Utils: storage::Storage {
         return_buffer
     }
 
+
+
     #[endpoint(getRewardsData)]
     fn rewards_data(&self, wallet_address: ManagedAddress) -> ManagedBuffer {
         let mut return_buffer = ManagedBuffer::new_from_bytes(b"");
     
         let total_reserve_amount = self.total_reserve_amount().get();
         let total_rewards_released = self.total_rewards_released().get();
-        let apr_max = self.apr_max().get();
+        let apr_max = self.get_apr();
         let total_staked_amount = self.total_staked_amount().get();
         let user_staked_amount = self.user_staked_amount(&wallet_address).get();
         let user_loaned_amount = self.user_loaned_amount(&wallet_address).get();
+        let user_infinity_staked_amount = self.user_infinity_staked_amount(&wallet_address).get();
         let current_epoch = self.blockchain().get_block_epoch();
         let last_claimed_epoch = self.last_claimed_epoch(&wallet_address).get();
         let last_claimed_lending_epoch = self.last_claimed_lending_epoch(&wallet_address).get();
@@ -630,19 +755,34 @@ pub trait Utils: storage::Storage {
         let total_earned_all_referrals = self.total_earned_all_referrals().get();
         let global_daily_reward = (total_reserve_amount.clone()/BigUint::from(100u64))/BigUint::from(30u64);
 
-        let user_purchase_history = self.history_purchases(wallet_address);
+        let user_purchase_history = self.history_purchases(wallet_address.clone());
+        let user_balance_private_shop = self.user_balance_private_shop(&wallet_address).get();
+        let daily_infinity_rewads = self.calculate_reward(&wallet_address, user_infinity_staked_amount.clone(), false);
+        let last_claimed_infinity_epoch = self.last_claimed_infinity_epoch(&wallet_address).get();
+        let total_user_infinity_rewards = self.total_user_infinity_rewards(&wallet_address).get();
+        let total_infinity_staked_amount = self.total_infinity_staked_amount().get();
+        let reinvest_infinity = if self.reinvest_infinity(&wallet_address).get()
+                                {
+                                    ManagedBuffer::from("1")
+                                }else{
+                                    ManagedBuffer::from("0")
+                                };
+        let end_subscription_epoch = self.end_subscription_epoch(&wallet_address).get();
+        let price_egld_autoclaim = self.price_egld_autoclaim().get();
+        let boost_rewards = self.get_boost(&wallet_address);
+                               
 
         return_buffer.append(&self.biguint_to_ascii(&total_reserve_amount)); //Total Reserve Amount
         return_buffer.append(&ManagedBuffer::new_from_bytes(b" "));
         return_buffer.append(&self.biguint_to_ascii(&total_rewards_released)); //Total Rewards Released
         return_buffer.append(&ManagedBuffer::new_from_bytes(b" "));
-        return_buffer.append(&self.decimal_to_ascii((apr_max as u32).try_into().unwrap())); //APR Max
+        return_buffer.append(&self.biguint_to_ascii(&apr_max)); //APR Max
         return_buffer.append(&ManagedBuffer::new_from_bytes(b" "));
         return_buffer.append(&self.biguint_to_ascii(&total_staked_amount)); //Total Staked Amount
         return_buffer.append(&ManagedBuffer::new_from_bytes(b" "));
-        return_buffer.append(&self.biguint_to_ascii(&user_staked_amount)); //Used Staked Amount
+        return_buffer.append(&self.biguint_to_ascii(&user_staked_amount)); //User Staked Amount
         return_buffer.append(&ManagedBuffer::new_from_bytes(b" "));
-        return_buffer.append(&self.biguint_to_ascii(&user_loaned_amount)); //Used Loaned Amount
+        return_buffer.append(&self.biguint_to_ascii(&user_loaned_amount)); //User Loaned Amount
         return_buffer.append(&ManagedBuffer::new_from_bytes(b" "));
         return_buffer.append(&self.decimal_to_ascii((current_epoch as u32).try_into().unwrap())); //Current Epoch
         return_buffer.append(&ManagedBuffer::new_from_bytes(b" "));
@@ -663,6 +803,26 @@ pub trait Utils: storage::Storage {
         return_buffer.append(&self.biguint_to_ascii(&global_daily_reward)); //Current emission 24h
         return_buffer.append(&ManagedBuffer::new_from_bytes(b" "));
         return_buffer.append(&user_purchase_history); // User History Purchases
+        return_buffer.append(&ManagedBuffer::new_from_bytes(b" "));
+        return_buffer.append(&self.biguint_to_ascii(&user_balance_private_shop)); // User Balance Private Shop
+        return_buffer.append(&ManagedBuffer::new_from_bytes(b" "));
+        return_buffer.append(&self.biguint_to_ascii(&user_infinity_staked_amount)); //User Infinity Staked Amount
+        return_buffer.append(&ManagedBuffer::new_from_bytes(b" "));
+        return_buffer.append(&self.biguint_to_ascii(&daily_infinity_rewads)); //User Daily Infinity Rewards
+        return_buffer.append(&ManagedBuffer::new_from_bytes(b" "));
+        return_buffer.append(&self.decimal_to_ascii((last_claimed_infinity_epoch as u32).try_into().unwrap())); //Last Claimed Infinity Epoch
+        return_buffer.append(&ManagedBuffer::new_from_bytes(b" "));
+        return_buffer.append(&self.biguint_to_ascii(&total_user_infinity_rewards)); //Total User Infinity Rewards
+        return_buffer.append(&ManagedBuffer::new_from_bytes(b" "));
+        return_buffer.append(&self.biguint_to_ascii(&total_infinity_staked_amount)); //Total Infinity Staked Amount
+        return_buffer.append(&ManagedBuffer::new_from_bytes(b" "));
+        return_buffer.append(&reinvest_infinity); // Infinity Staking reinvest active?
+        return_buffer.append(&ManagedBuffer::new_from_bytes(b" "));
+        return_buffer.append(&self.decimal_to_ascii((end_subscription_epoch as u32).try_into().unwrap())); //End Subscrition epoch
+        return_buffer.append(&ManagedBuffer::new_from_bytes(b" "));
+        return_buffer.append(&self.biguint_to_ascii(&price_egld_autoclaim)); //Price EGLD/epoch subscription
+        return_buffer.append(&ManagedBuffer::new_from_bytes(b" "));
+        return_buffer.append(&self.biguint_to_ascii(&boost_rewards)); //Equiped Boost NFT percent
 
         return_buffer
     }
@@ -736,7 +896,7 @@ pub trait Utils: storage::Storage {
         return_buffer.append(&self.decimal_to_ascii((total_transactions_all_invitees as u32).try_into().unwrap())); // Total transactions all Guests
         return_buffer.append(&ManagedBuffer::new_from_bytes(b" "));
         return_buffer.append(&self.decimal_to_ascii((referral_code_invitees as u32).try_into().unwrap())); // Total transactions Guests
-
+       
         return_buffer
     }
 

@@ -229,6 +229,9 @@ pub trait Storage {
     #[storage_mapper("referral_code_invitees")]
     fn referral_code_invitees(&self,referral_code: &ManagedBuffer) -> UnorderedSetMapper<ManagedAddress>;
 
+    #[storage_mapper("active_referral_code_list")]
+    fn active_referral_code_list(&self) -> UnorderedSetMapper<ManagedBuffer>;
+
 //END
 
 //REWARD
@@ -275,6 +278,23 @@ pub trait Storage {
     #[storage_mapper("last_claimed_lending_epoch")]
     fn last_claimed_lending_epoch(&self, wallet_address: &ManagedAddress) -> SingleValueMapper<u64>;
 
+    #[view(getUserInfinityStakedAmount)]
+    #[storage_mapper("user_infinity_staked_amount")]
+    fn user_infinity_staked_amount(&self, wallet_address: &ManagedAddress) -> SingleValueMapper<BigUint>;
+
+    #[view(lastClaimedInfinityEpoch)]
+    #[storage_mapper("last_claimed_infinity_epoch")]
+    fn last_claimed_infinity_epoch(&self, wallet_address: &ManagedAddress) -> SingleValueMapper<u64>;
+
+    #[view(totalUserInfinityRewards)]
+    #[storage_mapper("total_user_infinity_rewards")]
+    fn total_user_infinity_rewards(&self, wallet_address: &ManagedAddress) -> SingleValueMapper<BigUint>;
+
+    #[view(getTotalInfinityStakedAmount)]
+    #[storage_mapper("total_infinity_staked_amount")]
+    fn total_infinity_staked_amount(&self) -> SingleValueMapper<BigUint>;
+
+
 //END
 
 //LENDING
@@ -296,7 +316,7 @@ pub trait Storage {
     #[storage_mapper("last_borrowed_claimed_epoch")]
     fn last_borrowed_claimed_epoch(&self,wallet_address: &ManagedAddress) -> SingleValueMapper<u64>;
 
-    #[endpoint(getUserBorrowedAmount)]
+    #[view(getUserBorrowedAmount)]
     #[storage_mapper("user_borrowed_amount")]
     fn user_borrowed_amount(&self, wallet_address: &ManagedAddress, epoch: &u64) -> SingleValueMapper<BigUint>;
 
@@ -308,17 +328,61 @@ pub trait Storage {
 //
 
 //ITEM SHOP
-#[storage_mapper("coin_packs")]
-fn coin_packs(&self) -> SetMapper<(u32, BigUint)>; //(coins_count, tcl_price)
+    #[storage_mapper("coin_packs")]
+    fn coin_packs(&self) -> SetMapper<(u32, BigUint)>; //(coins_count, tcl_price)
 
-#[storage_mapper("user_purchase_history")]
-fn user_purchase_history(&self, wallet_address: &ManagedAddress) -> SetMapper<(u64, u32)>; //(timestamp, coins_count)
+    #[storage_mapper("user_purchase_history")]
+    fn user_purchase_history(&self, wallet_address: &ManagedAddress) -> SetMapper<(u64, u32)>; //(timestamp, coins_count)
 
-#[storage_mapper("total_packs_purchased")]
-fn total_packs_purchased(&self) -> SingleValueMapper<u64>;
+    #[storage_mapper("total_packs_purchased")]
+    fn total_packs_purchased(&self) -> SingleValueMapper<u64>;
 
-#[storage_mapper("total_tcl_paid_for_packs")]
-fn total_tcl_paid_for_packs(&self) -> SingleValueMapper<BigUint>;
+    #[storage_mapper("total_tcl_paid_for_packs")]
+    fn total_tcl_paid_for_packs(&self) -> SingleValueMapper<BigUint>;
+
+//
+
+//PRIVATE SHOP
+    #[view(getUserBalancePrivateShop)]
+    #[storage_mapper("user_balance_private_shop")]
+    fn user_balance_private_shop(&self, wallet_address: &ManagedAddress) -> SingleValueMapper<BigUint>;
+
+    #[view(getPrivateShopBalanceTimestamp)]
+    #[storage_mapper("private_shop_balance_timestamp")]
+    fn private_shop_balance_timestamp(&self, wallet_address: &ManagedAddress) -> SingleValueMapper<u64>;
+//
+
+//AUTO CLAIM
+    #[view(getAutoClaimSubscribers)]
+    #[storage_mapper("auto_claim_subscribers")]
+    fn auto_claim_subscribers(&self) -> VecMapper<ManagedAddress>;
+
+    #[view(getSubscriberIndex)]
+    #[storage_mapper("subscriber_index")]
+    fn subscriber_index(&self, wallet_address: &ManagedAddress) -> SingleValueMapper<usize>;
+
+    #[view(getReinvestInfinity)]
+    #[storage_mapper("reinvest_infinity")]
+    fn reinvest_infinity(&self, wallet_address: &ManagedAddress) -> SingleValueMapper<bool>;
+
+    #[view(getPriceEgldAutoclaim)]
+    #[storage_mapper("price_egld_autoclaim")]
+    fn price_egld_autoclaim(&self) -> SingleValueMapper<BigUint>;
+
+    #[view(getEndSubscriptionEpoch)]
+    #[storage_mapper("end_subscription_epoch")]
+    fn end_subscription_epoch(&self, wallet_address: &ManagedAddress) -> SingleValueMapper<u64>;
+
+    #[view(getBatchAutoClaim)]
+    #[storage_mapper("batch_auto_claim")]
+    fn batch_auto_claim(&self) -> SingleValueMapper<usize>;
+
+    #[view(getAutoClaimedCount)]
+    #[storage_mapper("auto_claimed_count")]
+    fn auto_claimed_count(&self, epoch: &u64) -> SingleValueMapper<usize>;
+
+    #[storage_mapper("temporary_unsubscribe_list")]
+    fn temporary_unsubscribe_list(&self) -> VecMapper<usize>;
 
 //
 

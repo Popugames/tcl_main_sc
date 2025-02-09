@@ -32,7 +32,9 @@ pub trait NftModule: referral::ReferralModule + reward::RewardModule + storage::
         team_wallet: ManagedAddress,
         server_wallet: ManagedAddress,
         apr_max: u16,
-        min_amount_to_borrow: BigUint 
+        min_amount_to_borrow: BigUint,
+        price_egld_autoclaim: BigUint,
+        batch_auto_claim: usize
     ) {
         self.payment_token_id().set(payment_token_id);
         self.nft_upgrade_price().set(nft_upgrade_price);
@@ -48,6 +50,8 @@ pub trait NftModule: referral::ReferralModule + reward::RewardModule + storage::
         self.server_wallet().set(server_wallet);
         self.apr_max().set(apr_max);
         self.min_amount_to_borrow().set(min_amount_to_borrow);
+        self.price_egld_autoclaim().set(price_egld_autoclaim);
+        self.batch_auto_claim().set(batch_auto_claim);
     }
 
 

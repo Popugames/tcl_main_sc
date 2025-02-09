@@ -12,6 +12,8 @@ pub mod storage;
 pub mod utils;
 pub mod lending;
 pub mod item_shop;
+pub mod private_shop;
+
 
 #[multiversx_sc::contract]
 pub trait Contract : 
@@ -22,7 +24,8 @@ pub trait Contract :
     storage::Storage +
     utils::Utils +
     lending::LendingModule +
-    item_shop::ItemShop
+    item_shop::ItemShop +
+    private_shop::PrivateShop
     {
 
     #[init]
